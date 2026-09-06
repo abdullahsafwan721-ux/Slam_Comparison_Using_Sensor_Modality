@@ -1,0 +1,55 @@
+x-common: &common
+  environment:
+    - DISPLAY=${DISPLAY}
+    - NVIDIA_DRIVER_CAPABILITIES=all
+    - QT_X11_NO_MITSHM=1
+
+  volumes:
+    - /tmp/.X11-unix:/tmp/.X11-unix
+    - ./data:/data:ro
+    - ./config:/config:ro
+    - ./scripts:/scripts:ro
+    - ./output:/output
+
+  stdin_open: true
+  tty: true
+
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+services:
+
+  orbslam3:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/orbslam3.Dockerfile
+    image: evtol/orbslam3:v1
+
+  fastlio2:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/fastlio2.Dockerfile
+    image: evtol/fastlio2:v1
+    shm_size: 4gb
+
+  fastlivo2:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/fastlivo2.Dockerfile
+    image: evtol/fastlivo2:v1
+    shm_size: 4gb
+
+  eval:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/eval.Dockerfile
+    image: evtol/eval:v1

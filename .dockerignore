@@ -1,0 +1,6 @@
+data/
+output/
+*.bag
+*.zip
+*.tar.gz
+.git/
