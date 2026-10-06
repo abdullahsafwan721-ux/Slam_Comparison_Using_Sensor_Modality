@@ -26,9 +26,9 @@ SEQS="
 lili6_schloss1|lili|data/lili/KA_Urban_Schloss_1.bag|lili.yaml|
 lili7_schloss2|lili|data/lili/KA_Urban_Schloss_2.bag|lili.yaml|
 lili8_east|lili|data/lili/KA_Urban_East.bag|lili.yaml|
-liosam2_garden|velo|data/liosam/garden_dataset.bag|liosam_park_garden.yaml|points_raw
-liosam1_park|velo_gps|data/liosam/park_dataset.bag|liosam_park_garden.yaml|points_raw
-liosam3_campus|velo|data/liosam/campus_large_dataset.bag|liosam_campus.yaml|points_raw
+liosam2_garden|velo|data/liosam/garden_dataset.bag|liosam_park_garden.yaml|/points_raw
+liosam1_park|velo_gps|data/liosam/park_dataset.bag|liosam_park_garden.yaml|/points_raw
+liosam3_campus|velo|data/liosam/campus_large_dataset.bag|liosam_campus.yaml|/points_raw
 utbm8|utbm|data/utbm/utbm_20180719.bag|utbm.yaml|
 utbm9|utbm|data/utbm/utbm_20190131.bag|utbm.yaml|
 utbm10|utbm|data/utbm/utbm_20190418.bag|utbm.yaml|

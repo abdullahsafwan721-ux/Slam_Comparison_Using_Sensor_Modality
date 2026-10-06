@@ -35,4 +35,5 @@ pcd_save:
     interval: -1
 # timestamp_unit: LIO-SAM's README states the per-point "time" is relative time
 # in SECONDS (0..0.1 s at 10 Hz). The guide's value 2 (us) would scale it by
-# 1e-3 and switch de-skew off. Verified on the bag with fl2_cloudcheck.py.
+# 1e-3 and switch de-skew off. Verified 2026-10-06 with fl2_cloudcheck.py on garden,
+# park and campus_large: within-scan spread 0.1007 s -> seconds.
