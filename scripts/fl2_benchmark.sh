@@ -12,6 +12,7 @@
 #   bash scripts/fl2_benchmark.sh            # all sequences, waits for downloads
 #   ONLY="utbm8 nclt5" bash scripts/fl2_benchmark.sh
 #   WAIT=0 bash scripts/fl2_benchmark.sh     # do what is ready now, then stop
+# Several instances may run at once (per-sequence lock dirs in output/fastlio2/.lock_*).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 RUNS=${RUNS:-5}; WAIT=${WAIT:-1}
@@ -119,7 +120,11 @@ while :; do
     [ "$(done_runs "$seq")" -ge "$RUNS" ] && continue
     [ -n "${failed[$seq]:-}" ] && continue
     if ready "$kind" "$input"; then
+      # per-sequence lock: several orchestrator instances (e.g. ONLY="nclt4 nclt6" and
+      # ONLY="nclt7 nclt8") can run side by side without ever touching the same sequence
+      mkdir "$OUT/.lock_$seq" 2>/dev/null || { pending=$((pending + 1)); continue; }
       process "$seq" "$kind" "$input" "$cfg" "$topic" || failed[$seq]=1
+      rmdir "$OUT/.lock_$seq"
     else
       pending=$((pending + 1))
     fi
