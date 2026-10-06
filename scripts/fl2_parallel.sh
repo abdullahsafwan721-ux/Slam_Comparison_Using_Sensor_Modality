@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 pids=()
 for k in $(seq 1 "$N"); do
   docker compose run --rm -T ${DOCKER_ARGS:-} -e RUN_START="$k" -e RUNS=1 fastlio2 \
-      bash "/scripts/$RUNNER" "$@" > "/tmp/fl2_parallel_$$_$k.log" 2>&1 &
+      bash "/scripts/$RUNNER" "$@" < /dev/null > "/tmp/fl2_parallel_$$_$k.log" 2>&1 &
   pids+=($!)
   sleep 2
 done

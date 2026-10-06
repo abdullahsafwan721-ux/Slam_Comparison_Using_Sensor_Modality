@@ -18,7 +18,8 @@ RUNS=${RUNS:-5}; WAIT=${WAIT:-1}
 OUT=output/fastlio2; mkdir -p "$OUT"
 LOG=$OUT/benchmark.log
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
-dc() { docker compose run --rm -T "$@" 2>&1 | grep -vE '^ ?(Container|Network) '; }
+# </dev/null: docker compose would otherwise swallow the loop's stdin (the sequence list)
+dc() { docker compose run --rm -T "$@" </dev/null 2>&1 | grep -vE '^ ?(Container|Network) '; }
 
 # seq | kind | input (host path relative to repo) | config | extra
 SEQS="
@@ -109,7 +110,7 @@ process() {
 declare -A failed=()
 while :; do
   pending=0
-  while IFS='|' read -r seq kind input cfg topic; do
+  while IFS='|' read -r seq kind input cfg topic <&3; do
     [ -n "$seq" ] || continue
     if [ -n "${ONLY:-}" ] && ! grep -qw "$seq" <<<"$ONLY"; then continue; fi
     [ "$(done_runs "$seq")" -ge "$RUNS" ] && continue
@@ -119,7 +120,7 @@ while :; do
     else
       pending=$((pending + 1))
     fi
-  done <<<"$SEQS"
+  done 3<<<"$SEQS"
   [ "$pending" -eq 0 ] || [ "$WAIT" = 0 ] && break
   sleep 120
 done
