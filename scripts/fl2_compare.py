@@ -85,8 +85,8 @@ for (seq, metric), v in sorted(runs.items(), key=lambda kv: list(PAPER).index(pa
     if pm != metric:
         print("| %s | %s | %s | paper uses %s | %.3f | %d | %.3f | - | WRONG METRIC (missing gt_%s.tum?) |" % (pid, seq, metric, pm, med, len(v), spread, seq)); continue
     if pv is None:
-        band = "PASS" if med < 0.1 else "FAIL"
-        print("| %s | %s | %s | < 0.1 | %.3f | %d | %.3f | - | %s |" % (pid, seq, metric, med, len(v), spread, band)); continue
+        verdict = "PASS" if med < 0.1 else "FAIL"
+        print("| %s | %s | %s | < 0.1 | %.3f | %d | %.3f | - | %s |" % (pid, seq, metric, med, len(v), spread, verdict)); continue
     dev = (med - pv) / pv
     ind = INDEP.get(pid)
     icol = ("%.2f | %+.1f %% (%s)" % (ind, 100*(med-ind)/ind, band((med-ind)/ind))) if ind else "- | -"
