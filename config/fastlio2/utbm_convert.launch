@@ -1,12 +1,21 @@
 <?xml version="1.0"?>
-<!-- Turns the LEFT HDL-32E's raw packets into /hdl32e_left/velodyne_points.
-     cloud_node subscribes to velodyne_packets inside its namespace, which is
-     why the group ns matches the bag's topic prefix. -->
+<!-- Turns the LEFT HDL-32E's raw packets into /hdl32e_left/velodyne_points
+     ("In this paper, we only consider the left LiDAR").
+     ROS Noetic's velodyne_pointcloud 1.7.0 no longer ships the standalone
+     cloud_node; its replacement is TransformNodelet in a nodelet manager
+     (same as the package's own 32e_points.launch). Empty fixed/target frames
+     mean no TF lookup: points stay in the sensor frame. The nodelet subscribes
+     to velodyne_packets inside its namespace, hence the group ns matches the
+     bag's topic prefix. -->
 <launch>
   <group ns="hdl32e_left">
-    <node pkg="velodyne_pointcloud" type="cloud_node" name="cloud_node" output="screen">
-      <param name="calibration" value="$(find velodyne_pointcloud)/params/32db.yaml"/>
+    <node pkg="nodelet" type="nodelet" name="velodyne_nodelet_manager" args="manager"/>
+    <node pkg="nodelet" type="nodelet" name="velodyne_transform"
+          args="load velodyne_pointcloud/TransformNodelet velodyne_nodelet_manager">
       <param name="model" value="32E"/>
+      <param name="calibration" value="$(find velodyne_pointcloud)/params/32db.yaml"/>
+      <param name="fixed_frame" value=""/>
+      <param name="target_frame" value=""/>
       <param name="min_range" value="0.4"/>
       <param name="max_range" value="130.0"/>
       <param name="organize_cloud" value="false"/>

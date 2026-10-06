@@ -9,8 +9,8 @@ common:
 preprocess:
     lidar_type: 2
     scan_line: 32
-    scan_rate: 10                 # used for de-skew if the cloud has no per-point time
-    timestamp_unit: 0             # TO VERIFY: velodyne_pointcloud (noetic) writes time in seconds
+    scan_rate: 10                 # only used if a cloud lacked per-point time (it does not here)
+    timestamp_unit: 0             # verified: velodyne_pointcloud 1.7.0 writes per-point time in SECONDS (0.1 s spread)
     blind: 2
 mapping:
     acc_cov: 0.1
