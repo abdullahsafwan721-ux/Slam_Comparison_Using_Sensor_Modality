@@ -101,6 +101,8 @@ process() {
         rm -f "data/nclt/$input.bag" && log "   removed converted data/nclt/$input.bag (re-create with nclt_to_bag.sh)"
       fi ;;
   esac
+  # containers run as root: hand the results back to the invoking user
+  docker run --rm -v "$PWD/output:/o" evtol/eval:v1 chown -R "$(id -u):$(id -g)" /o/fastlio2 /o/results 2>/dev/null
   log "== $seq: $(done_runs "$seq") run bags"
 }
 
