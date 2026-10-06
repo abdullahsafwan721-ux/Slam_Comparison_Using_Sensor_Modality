@@ -44,8 +44,10 @@ for bag in "$IN"/*_r*.bag; do
       # track gnssref_<seq>.tum exists, also score the end point against it (proxy).
       ref="$IN/gnssref_${seq}.tum"
       if [ -s "$ref" ]; then
-         v=$(python3 /scripts/fl2_endref.py "$tum" "$ref" | awk '/end-point error/{print $5}')
+         er=$(python3 /scripts/fl2_endref.py "$tum" "$ref")
+         v=$(awk '/end-point error/{print $5}' <<<"$er")
          echo "$seq,$run,end_ref_gnss,${v:-NA}" >> "$RESULTS/summary.csv"
+         echo "$seq,$run,gnss_start_end,$(awk '/start->end displacement/{print $4}' <<<"$er")" >> "$RESULTS/summary.csv"
          printf '%-28s run %-2s end-point vs GNSS %s m (proxy)\n' "$seq" "$run" "${v:-FAILED}"
       fi
    fi

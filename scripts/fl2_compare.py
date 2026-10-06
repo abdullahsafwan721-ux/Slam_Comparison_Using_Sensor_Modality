@@ -45,6 +45,10 @@ PAPER = {  # id: (metric, value_m, real sequence)   value None = '< 0.1 m'
 INDEP = {"nclt 5": 1.40, "nclt 6": 2.46, "nclt 7": 2.37, "nclt 8": 4.37, "nclt 9": 0.90,
          "utbm 8": 15.13, "utbm 9": 21.21, "utbm 10": 10.81, "ulhk 4": 1.20}
 
+# A KA-Urban sequence counts as returning to its start when the bag's own GNSS puts
+# the end within LOOP_TOL of the start (consumer GNSS is good to a few metres).
+LOOP_TOL = 5.0
+
 def band(dev):
     return "green" if abs(dev) < 0.15 else "amber" if abs(dev) <= 0.30 else "red"
 
@@ -67,8 +71,17 @@ for (seq, metric), v in sorted(runs.items(), key=lambda kv: list(PAPER).index(pa
     tgt = "< 0.1" if pv is None else "%.2f" % pv
     if metric == "end_ref_gnss" and pm == "end_to_end":
         print("| %s | %s | end point vs GNSS (proxy) | %s | %.3f | %d | %.3f | - | PROXY: reference end points unpublished, GNSS is metre-level |" % (pid, seq, tgt, med, len(v), spread)); continue
+    if metric == "gnss_start_end": continue
     if pid.startswith("lili") and metric == "end_to_end":
-        print("| %s | %s | first-to-last gap | %s | %.3f | %d | %.3f | - | NOT COMPARABLE: KA-Urban ends away from its start |" % (pid, seq, tgt, med, len(v), spread)); continue
+        gap = runs.get((seq, "gnss_start_end"))
+        gap = statistics.median(gap) if gap else None
+        if gap is None or gap > LOOP_TOL:
+            why = "GNSS start-end %.1f m" % gap if gap is not None else "no GNSS reference"
+            print("| %s | %s | first-to-last gap | %s | %.3f | %d | %.3f | - | NOT COMPARABLE: %s, sequence does not return to its start |" % (pid, seq, tgt, med, len(v), spread, why)); continue
+        if pv is None:
+            print("| %s | %s | first-to-last gap | < 0.1 | %.3f | %d | %.3f | - | %s (GNSS start-end %.1f m) |" % (pid, seq, med, len(v), spread, "PASS" if med < 0.1 else "FAIL", gap)); continue
+        dev = (med - pv) / pv
+        print("| %s | %s | first-to-last gap | %.2f | %.3f | %d | %.3f | %+.1f %% | %s (GNSS start-end %.1f m) | - | - |" % (pid, seq, pv, med, len(v), spread, 100*dev, band(dev), gap)); continue
     if pm != metric:
         print("| %s | %s | %s | paper uses %s | %.3f | %d | %.3f | - | WRONG METRIC (missing gt_%s.tum?) |" % (pid, seq, metric, pm, med, len(v), spread, seq)); continue
     if pv is None:
