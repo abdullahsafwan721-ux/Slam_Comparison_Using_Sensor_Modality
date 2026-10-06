@@ -18,9 +18,10 @@ stop() {
   wait "$@" 2>/dev/null || true
 }
 
-for r in $(seq 1 "$RUNS"); do
+R0=${RUN_START:-1}                       # first run index (parallel containers: RUN_START=k RUNS=1)
+for r in $(seq "$R0" $((R0 + RUNS - 1))); do
   OUT=$OUTDIR/${SEQ}_r${r}.bag
-  echo "=== $SEQ run $r/$RUNS ==="
+  echo "=== $SEQ run $r ==="
   roscore >/dev/null 2>&1 & CORE=$!
   until rostopic list >/dev/null 2>&1; do sleep 0.5; done
   rosparam set /use_sim_time true

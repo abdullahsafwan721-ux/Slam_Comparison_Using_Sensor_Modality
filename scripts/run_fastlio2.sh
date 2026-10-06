@@ -2,6 +2,7 @@
 # Replay one bag through FAST-LIO2 and record /Odometry.
 #   run_fastlio2.sh <config.yaml> <in.bag> <seq-name> [rate]
 #   RUNS=5 run_fastlio2.sh ...          repeat and write _r1.._rN
+#   RUN_START=3 RUNS=1 run_fastlio2.sh ... write only _r3 (one run per container)
 # Writes $OUTDIR/<seq>_r<N>.bag (+ .algo.log, .params.yaml); OUTDIR defaults to /output/fastlio2
 set -eo pipefail
 CFG=$1; BAG=$2; SEQ=$3; RATE=${4:-1.0}; RUNS=${RUNS:-1}
@@ -22,9 +23,10 @@ stop() {
   wait "$@" 2>/dev/null || true
 }
 
-for r in $(seq 1 "$RUNS"); do
+R0=${RUN_START:-1}                       # first run index (parallel containers: RUN_START=k RUNS=1)
+for r in $(seq "$R0" $((R0 + RUNS - 1))); do
   OUT=$OUTDIR/${SEQ}_r${r}.bag
-  echo "=== $SEQ run $r/$RUNS ==="
+  echo "=== $SEQ run $r ==="
   roscore >/dev/null 2>&1 & CORE=$!
   until rostopic list >/dev/null 2>&1; do sleep 0.5; done
   rosparam set /use_sim_time true          # must be set BEFORE the node starts
