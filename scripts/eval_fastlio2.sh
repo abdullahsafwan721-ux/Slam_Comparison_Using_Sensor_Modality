@@ -37,7 +37,7 @@ for bag in "$IN"/*_r*.bag; do
       echo "$seq,$run,ape_rmse,${v:-NA}" >> "$RESULTS/summary.csv"
       printf '%-28s run %-2s APE RMSE %s m\n' "$seq" "$run" "${v:-FAILED}"
    else
-      v=$(python3 /scripts/fl2_drift.py "$tum" 2 | awk '/end-to-end/{print $3}')
+      v=$(python3 /scripts/fl2_drift.py "$tum" auto | awk '/end-to-end/{print $3}')
       echo "$seq,$run,end_to_end,${v:-NA}" >> "$RESULTS/summary.csv"
       printf '%-28s run %-2s end-to-end %s m (no ground truth)\n' "$seq" "$run" "${v:-FAILED}"
       # Sequences whose true end is NOT the start (LiLi-OM KA-Urban): if a GNSS
