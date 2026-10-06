@@ -98,6 +98,22 @@ the July-2021 FAST_LIO code; the pin is the 2023+ HEAD.
 | lili 6 | Schloss-1 | first-to-last / GNSS proxy | < 0.1 | 20.46 / 1.88 | 0.017 / 0.030 | not comparable / proxy at GNSS noise | - | - |
 | lili 7 | Schloss-2 | first-to-last / GNSS proxy | 1.63 | 11.27 / 8.86 | 0.073 / 0.120 | red | - | - |
 
+## Functional validation (not a paper comparison)
+
+`output/fastlio2_outdoor_run_100Hz_r1.tum` / `output/lio_run1.bag` (Sept 2026, old
+image, upstream `mapping_avia.launch`, i.e. `point_filter_num 3`):
+`outdoor_run_100Hz_2020-12-27-17-12-19.bag` is a demo bag from the FAST_LIO
+README's Google Drive folder. It is **not** one of the paper's benchmark
+sequences and has no published number, so it is a smoke test only: ~3 cm
+rest-to-rest closure over ~88 m shows a healthy system, nothing more. The nearest
+thing in the paper is Sec. VII-B (a different ~650 m handheld sequence, 0.14 m
+drift, quoted in prose). The source bag was moved to the desktop Trash on
+2026-10-06 08:12; the result files are kept.
+
+The rebuilt pipeline was smoke-tested on an 89 s slice of KA_Urban_Schloss_1
+(re-indexed partial download): 886 poses / 890 scans, serial and 3 parallel
+runs bit-identical, GNSS ground truth on the same time base.
+
 ## Not run
 
 - **ulhk 4/5/6** (UrbanLoco): ~110 GB on a Dropbox folder that cannot be listed
