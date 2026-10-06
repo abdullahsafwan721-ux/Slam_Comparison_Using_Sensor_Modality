@@ -58,10 +58,13 @@ each run as `<seq>_r<N>.params.yaml`.
 | 5 | (converter runs as is) | Ubuntu 20.04 scipy 1.3 lacks `Rotation.from_matrix` | runtime alias to `from_dcm`; script unchanged |
 | 6 | `utbm_convert.launch` uses `velodyne_pointcloud/cloud_node` | not shipped in Noetic's 1.7.0 -- launch starts nothing | `TransformNodelet` in a nodelet manager |
 | 7 | UTBM cloud may lack per-point time; `timestamp_unit: 2` | converted cloud has `time` in **seconds** | `timestamp_unit: 0` (2 would scale by 1e-3 and disable de-skew) |
-| 8 | liosam `timestamp_unit: 2` | LIO-SAM README: per-point time is seconds | `timestamp_unit: 0`, to be confirmed with `fl2_cloudcheck.py` on the bag |
+| 8 | liosam `timestamp_unit: 2` | measured on garden/park/campus: per-point time in **seconds** (0.1007 s spread) | `timestamp_unit: 0` |
 | 9 | garden is a "small bag" | 10.5 GB (park 3.5, campus_large 4.9) | -- |
 | 10 | lili end-to-end = first-to-last gap | KA-Urban bags do not end at their start; LiLi-OM scores against unpublished satellite-registered end points | report first-to-last as not comparable + GNSS end-point proxy (`fl2_endref.py`) |
 | 11 | paper Table VIII: nclt 9 = 0.26 km | GT path is 1139 m; Semi-Elastic LIO lists 1.1 km | paper typo |
+| 12 | UTBM GT: replay `/nmea_sentence` through `nmea_navsat_driver` at `-r 20` | kept 85 of 4633 GGA fixes on 2018-07-19 | parse GGA directly (`utbm_gt.sh`), RTK fixed+float; 2019-01-31 has no RTK -> falls back to GPS/DGPS with a warning |
+| 13 | end-to-end skips a fixed 2 s | LIO-SAM garden is already moving at 2 s: 0.134 m instead of 0.027 m | skip only a detected init transient (> 20 m/s steps in the first 5 s) |
+| 14 | (LIO-SAM topic `points_raw`) | bag topic is `/points_raw`; NCLT converter writes `points_raw` | per-dataset topic in `fl2_benchmark.sh` |
 
 ## Findings on the paper's numbers
 
@@ -90,13 +93,41 @@ sensitivity on nclt 9 run 1:
 The paper configuration is the best of these. Remaining hypothesis: the paper used
 the July-2021 FAST_LIO code; the pin is the 2023+ HEAD.
 
-## Results (median of 5 runs)
+## Results (median of 5 runs, final, 2026-10-07)
+
+Full table: `docs/results/fastlio2_comparison.md` (per-run values in
+`fastlio2_summary.csv`; evo 1.31.1, `--align` SE(3), `--t_max_diff 0.02`).
+"Independent" = FAST-LIO2 re-run by Yuan et al., arXiv 2307.07792, Table II.
 
 | Paper id | Sequence | Metric | Paper | Ours | Spread | vs paper | Independent | vs independent |
 |---|---|---|---|---|---|---|---|---|
-| nclt 9 | 2013-01-10 | ATE RMSE | 5.56 | 0.955 | 0.017 | -82.8 % | 0.90 | +6.1 % |
-| lili 6 | Schloss-1 | first-to-last / GNSS proxy | < 0.1 | 20.46 / 1.88 | 0.017 / 0.030 | not comparable / proxy at GNSS noise | - | - |
-| lili 7 | Schloss-2 | first-to-last / GNSS proxy | 1.63 | 11.27 / 8.86 | 0.073 / 0.120 | red | - | - |
+| liosam 2 | garden | end-to-end | < 0.1 | **0.027** | 0.000 | **PASS** | - | - |
+| liosam 3 | campus | end-to-end | 9.50 | 10.21 | 0.17 | **+7.5 % green** | - | - |
+| lili 6 | Schloss-1 | end-to-end | < 0.1 | 21.0 gap / 1.88 GNSS proxy | 0.02 / 0.03 | not comparable (ends 21 m from start) | - | - |
+| lili 7 | Schloss-2 | end-to-end | 1.63 | 11.49 | 0.07 | **+605 % red** | - | - |
+| lili 8 | East | end-to-end | 17.39 | 181 gap / 17.70 GNSS proxy | 1.2 / 4.3 | not comparable (ends 185 m from start); proxy +1.8 % | - | - |
+| liosam 1 | park | ATE RMSE | 4.58 | 0.510 | 0.002 | -88.9 % | - | - |
+| nclt 9 | 2013-01-10 | ATE RMSE | 5.56 | 0.955 | 0.017 | -82.8 % | 0.90 | **+6.1 % green** |
+| nclt 7 | 2012-06-15 | ATE RMSE | 6.58 | 2.107 | 0.081 | -68.0 % | 2.37 | **-11.1 % green** |
+| nclt 5 | 2012-04-29 | ATE RMSE | 6.68 | 1.468 | 0.027 | -78.0 % | 1.40 | **+4.8 % green** |
+| nclt 4 | 2012-01-15 | ATE RMSE | 8.71 | 1.793 | 0.117 | -79.4 % | - | - |
+| nclt 10 | 2013-04-05 | ATE RMSE | 16.29 | 6.773 | 1.274 | -58.4 % | - | - |
+| nclt 6 | 2012-05-11 | ATE RMSE | 20.96 | 2.428 | 0.217 | -88.4 % | 2.46 | **-1.3 % green** |
+| nclt 8 | 2012-12-01 | ATE RMSE | 30.08 | 2.316 | 2.714 | -92.3 % | 4.37 | -47.0 % red (runs bimodal 2.0-4.7; 4.37 inside range) |
+| utbm 8 | 2018-07-19 | ATE RMSE | 27.29 | 13.17 | 0.42 | -51.7 % | 15.13 | **-12.9 % green** |
+| utbm 9 | 2019-01-31 | ATE RMSE | 51.60 | 19.73 | 0.81 | -61.8 % | 21.21 | **-7.0 % green** |
+| utbm 10 | 2019-04-18 | ATE RMSE | 16.80 | 13.17 | 0.24 | -21.6 % amber | 10.81 | +21.8 % amber |
+
+Reading the table:
+- **End-to-end sequences that genuinely return to their start** (garden, campus):
+  garden PASS, campus +7.5 %. These match the paper directly.
+- **ATE RMSE sequences**: against the independent reproduction, 6 of 8 shared
+  sequences are green, 1 amber, 1 red (nclt 8, inside our run range). Against the
+  FAST-LIO2 paper every RMSE is lower, 22-92 %: the paper's RMSE protocol is not
+  the standard full-trajectory alignment (see findings above); the same gap
+  appears in the independent study, so it is a property of the paper's table, not
+  of this container.
+- **lili 7** is the one genuine shortfall (see diagnostics).
 
 ## Functional validation (not a paper comparison)
 
