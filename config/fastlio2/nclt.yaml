@@ -1,0 +1,37 @@
+# NCLT (nclt 4..10). Velodyne HDL-32E + Microstrain MS25 (50 Hz), converted to
+# ROS1 with the FAST-LIO authors' sensordata_to_rosbag_fastlio.py:
+# topics points_raw / imu_raw, per-point time in microseconds, points (x,-y,-z),
+# IMU axes remapped by [[0,-1,0],[-1,0,0],[0,0,-1]].
+# Extrinsic = M * R_body_vel * Rx(180) and M * (t_body_vel - t_body_imu), from the
+# NCLT paper's Table 4 -- re-derived independently on 2026-10-06 (1.08 deg from identity).
+common:
+    lid_topic: "/points_raw"
+    imu_topic: "/imu_raw"
+    time_sync_en: false
+    time_offset_lidar_to_imu: 0.0
+preprocess:
+    lidar_type: 2
+    scan_line: 32
+    scan_rate: 10
+    timestamp_unit: 2             # the converter writes per-point time in microseconds
+    blind: 2
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree: 180
+    det_range: 100.0
+    extrinsic_est_en: false
+    extrinsic_T: [ -0.176, -0.112, 0.247 ]
+    extrinsic_R: [ 0.999921, -0.012309, -0.002724,
+                   0.012269,  0.999825, -0.014119,
+                   0.002897,  0.014084,  0.999897 ]
+publish:
+    path_en: true
+    scan_publish_en: false
+    dense_publish_en: false
+    scan_bodyframe_pub_en: false
+pcd_save:
+    pcd_save_en: false
+    interval: -1

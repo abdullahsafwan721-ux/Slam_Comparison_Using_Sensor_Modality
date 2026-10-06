@@ -1,0 +1,38 @@
+# LIO-SAM dataset, campus_large (liosam 3, 16:26, 1.44 km). Velodyne VLP-16.
+# Source: LIO-SAM README -- for campus "the IMU topic is imu_correct, which gives
+# the IMU data in ROS REP105 standard"; extrinsicRot/RPY "need to be set as identity".
+# Using /imu_correct with the rotation would apply it twice.
+common:
+    lid_topic: "/points_raw"
+    imu_topic: "/imu_correct"     # NOT /imu_raw for this dataset
+    time_sync_en: false
+    time_offset_lidar_to_imu: 0.0
+preprocess:
+    lidar_type: 2                 # 1 Livox, 2 Velodyne, 3 Ouster
+    scan_line: 16                 # VLP-16
+    scan_rate: 10
+    timestamp_unit: 0             # 0 s, 1 ms, 2 us, 3 ns -- see note below
+    blind: 2
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree: 180
+    det_range: 100.0
+    extrinsic_est_en: false
+    extrinsic_T: [ 0.0, 0.0, 0.0 ]
+    extrinsic_R: [ 1, 0, 0,       # identity: /imu_correct is already in REP105
+                    0, 1, 0,
+                    0, 0, 1]
+publish:
+    path_en: true
+    scan_publish_en: false
+    dense_publish_en: false
+    scan_bodyframe_pub_en: false
+pcd_save:
+    pcd_save_en: false
+    interval: -1
+# timestamp_unit: LIO-SAM's README states the per-point "time" is relative time
+# in SECONDS (0..0.1 s at 10 Hz). The guide's value 2 (us) would scale it by
+# 1e-3 and switch de-skew off. Verified on the bag with fl2_cloudcheck.py.

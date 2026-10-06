@@ -1,0 +1,33 @@
+# LiLi-OM dataset, KA-Urban (lili 6/7/8). Livox Horizon, livox_ros_driver/CustomMsg.
+# IMU: the paper's Table II lists lili's IMU as "6-axis, 200 Hz" -- the Horizon's
+# built-in IMU (/livox/imu), not the 9-axis Xsens (/imu/data). Extrinsic is the
+# Horizon factory value from upstream FAST_LIO config/horizon.yaml.
+common:
+    lid_topic: "/livox/lidar"
+    imu_topic: "/livox/imu"
+    time_sync_en: false
+    time_offset_lidar_to_imu: 0.0
+preprocess:
+    lidar_type: 1                 # Livox CustomMsg
+    scan_line: 6                  # Horizon
+    blind: 4
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree: 100
+    det_range: 260.0
+    extrinsic_est_en: true        # as upstream's horizon.yaml ships it
+    extrinsic_T: [ 0.05512, 0.02226, -0.0297 ]
+    extrinsic_R: [ 1, 0, 0,
+                   0, 1, 0,
+                   0, 0, 1]
+publish:
+    path_en: true
+    scan_publish_en: false
+    dense_publish_en: false
+    scan_bodyframe_pub_en: false
+pcd_save:
+    pcd_save_en: false
+    interval: -1

@@ -1,0 +1,34 @@
+# UTBM robocar (utbm 8/9/10). Left HDL-32E only ("In this paper, we only consider
+# the left LiDAR"), Xsens MTi-28A at 100 Hz. The bag holds raw VelodyneScan
+# packets; utbm_convert.launch turns them into /hdl32e_left/velodyne_points.
+common:
+    lid_topic: "/hdl32e_left/velodyne_points"     # produced by velodyne_pointcloud, not in the bag
+    imu_topic: "/imu/data"
+    time_sync_en: false
+    time_offset_lidar_to_imu: 0.0
+preprocess:
+    lidar_type: 2
+    scan_line: 32
+    scan_rate: 10                 # used for de-skew if the cloud has no per-point time
+    timestamp_unit: 0             # TO VERIFY: velodyne_pointcloud (noetic) writes time in seconds
+    blind: 2
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree: 180
+    det_range: 100.0
+    extrinsic_est_en: true        # UTBM publishes no IMU-LiDAR extrinsic
+    extrinsic_T: [ 0.0, 0.0, 0.0 ]
+    extrinsic_R: [ 1, 0, 0,
+                   0, 1, 0,
+                   0, 0, 1]
+publish:
+    path_en: true
+    scan_publish_en: false
+    dense_publish_en: false
+    scan_bodyframe_pub_en: false
+pcd_save:
+    pcd_save_en: false
+    interval: -1
