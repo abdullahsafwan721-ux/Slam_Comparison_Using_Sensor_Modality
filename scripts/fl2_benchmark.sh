@@ -79,10 +79,11 @@ process() {
       if [ "$kind" = velo_gps ] && [ ! -s "$OUT/gt_$seq.tum" ]; then
         local fix
         fix=$(dc fastlio2 bash -c "source /opt/ros/noetic/setup.bash; rosbag info -y -k topics $bag" \
-              | awk '/topic:/{t=$2} /type: sensor_msgs\/NavSatFix/{print t; exit}')
+              | awk '/topic:/{t=$NF} /type: sensor_msgs\/NavSatFix/{print t; exit}')
         [ -n "$fix" ] || { log "!! $seq: no NavSatFix topic in bag"; return 1; }
         log "   GPS topic $fix"
         dc eval python3 /scripts/fl2_gt.py bag "$bag" "$fix" "/output/fastlio2/gt_$seq.tum" | tee -a "$LOG"
+        [ -s "$OUT/gt_$seq.tum" ] || { log "!! $seq: ground truth not created -- NOT RUNNING"; return 1; }
       fi
       bash scripts/fl2_parallel.sh "$RUNS" run_fastlio2.sh "/config/fastlio2/$cfg" "$bag" "$seq" | tee -a "$LOG" ;;
     utbm)
@@ -90,6 +91,7 @@ process() {
       if [ ! -s "$OUT/gt_$seq.tum" ]; then
         dc fastlio2 bash /scripts/utbm_gt.sh "$bag" "$seq" | tee -a "$LOG"
         dc eval python3 /scripts/fl2_gt.py bag "/output/fastlio2/${seq}_fix.bag" /fix "/output/fastlio2/gt_$seq.tum" | tee -a "$LOG"
+        [ -s "$OUT/gt_$seq.tum" ] || { log "!! $seq: ground truth not created -- NOT RUNNING"; return 1; }
       fi
       bash scripts/fl2_parallel.sh "$RUNS" run_fastlio2_utbm.sh "$bag" "$seq" | tee -a "$LOG" ;;
     nclt)
@@ -97,6 +99,7 @@ process() {
       [ -s "data/nclt/$input.bag" ] || { log "!! $seq: conversion failed"; return 1; }
       check_unit "/data/nclt/$input.bag" "$topic" "$cfg" || return 1
       [ -s "$OUT/gt_$seq.tum" ] || dc eval python3 /scripts/fl2_gt.py nclt "/data/nclt_gt/groundtruth_$input.csv" "/output/fastlio2/gt_$seq.tum" | tee -a "$LOG"
+      [ -s "$OUT/gt_$seq.tum" ] || { log "!! $seq: ground truth not created -- NOT RUNNING"; return 1; }
       bash scripts/fl2_parallel.sh "$RUNS" run_fastlio2.sh "/config/fastlio2/$cfg" "/data/nclt/$input.bag" "$seq" | tee -a "$LOG"
       if [ "$(done_runs "$seq")" -ge "$RUNS" ] && [ "${KEEP_NCLT_BAGS:-0}" != 1 ]; then
         rm -f "data/nclt/$input.bag" && log "   removed converted data/nclt/$input.bag (re-create with nclt_to_bag.sh)"
