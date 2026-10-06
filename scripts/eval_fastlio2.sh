@@ -9,6 +9,7 @@
 #   - convert /Odometry to TUM
 #   - if /output/fastlio2/gt_<seq>.tum exists -> evo_ape (SE(3) alignment)
 #   - otherwise                              -> end-to-end drift
+#     (+ end point vs gnssref_<seq>.tum if present, for sequences not ending at the start)
 # Never deletes earlier results: each call writes a new timestamped folder.
 set -uo pipefail
 IN=${IN:-/output/fastlio2}
@@ -39,6 +40,14 @@ for bag in "$IN"/*_r*.bag; do
       v=$(python3 /scripts/fl2_drift.py "$tum" 2 | awk '/end-to-end/{print $3}')
       echo "$seq,$run,end_to_end,${v:-NA}" >> "$RESULTS/summary.csv"
       printf '%-28s run %-2s end-to-end %s m (no ground truth)\n' "$seq" "$run" "${v:-FAILED}"
+      # Sequences whose true end is NOT the start (LiLi-OM KA-Urban): if a GNSS
+      # track gnssref_<seq>.tum exists, also score the end point against it (proxy).
+      ref="$IN/gnssref_${seq}.tum"
+      if [ -s "$ref" ]; then
+         v=$(python3 /scripts/fl2_endref.py "$tum" "$ref" | awk '/end-point error/{print $5}')
+         echo "$seq,$run,end_ref_gnss,${v:-NA}" >> "$RESULTS/summary.csv"
+         printf '%-28s run %-2s end-point vs GNSS %s m (proxy)\n' "$seq" "$run" "${v:-FAILED}"
+      fi
    fi
 done
 echo; echo "wrote $RESULTS/summary.csv"

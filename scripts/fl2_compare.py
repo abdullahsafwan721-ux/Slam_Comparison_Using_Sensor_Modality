@@ -6,7 +6,12 @@ of Table IV (ATE RMSE, m) and Table V (end-to-end error, m), Xu et al.,
 "FAST-LIO2: Fast Direct LiDAR-Inertial Odometry", IEEE T-RO 2022 (arXiv 2107.06829).
 Sequence names are matched on their prefix: liosam2_garden -> liosam 2, nclt9 -> nclt 9.
 Deviation = (ours - paper) / paper; green < 15 %, amber 15-30 %, red > 30 %.
-For the four '< 0.1 m' targets a percentage is meaningless: PASS if ours < 0.1 m."""
+For the four '< 0.1 m' targets a percentage is meaningless: PASS if ours < 0.1 m.
+lili (LiLi-OM KA-Urban): the paper's end-to-end error is against end locations
+"registered from satellite images" (LiLi-OM paper, Sec. 5.3.2), which are not
+published; the bags do NOT end at their start (GNSS: ~21 m apart on Schloss-1).
+The first-to-last gap is therefore flagged as not comparable, and the GNSS proxy
+(fl2_endref.py) is reported instead, with its metre-level limitation."""
 import csv, re, statistics, sys
 
 PAPER = {  # id: (metric, value_m, real sequence)   value None = '< 0.1 m'
@@ -47,6 +52,11 @@ for (seq, metric), v in sorted(runs.items(), key=lambda kv: list(PAPER).index(pa
     if pid not in PAPER:
         print("| - | %s | %s | (not in paper) | %.3f | %d | %.3f | - | functional check |" % (seq, metric, med, len(v), spread)); continue
     pm, pv, _ = PAPER[pid]
+    tgt = "< 0.1" if pv is None else "%.2f" % pv
+    if metric == "end_ref_gnss" and pm == "end_to_end":
+        print("| %s | %s | end point vs GNSS (proxy) | %s | %.3f | %d | %.3f | - | PROXY: reference end points unpublished, GNSS is metre-level |" % (pid, seq, tgt, med, len(v), spread)); continue
+    if pid.startswith("lili") and metric == "end_to_end":
+        print("| %s | %s | first-to-last gap | %s | %.3f | %d | %.3f | - | NOT COMPARABLE: KA-Urban ends away from its start |" % (pid, seq, tgt, med, len(v), spread)); continue
     if pm != metric:
         print("| %s | %s | %s | paper uses %s | %.3f | %d | %.3f | - | WRONG METRIC (missing gt_%s.tum?) |" % (pid, seq, metric, pm, med, len(v), spread, seq)); continue
     if pv is None:
