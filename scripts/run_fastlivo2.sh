@@ -68,8 +68,8 @@ for r in $(seq "$R0" $((R0 + RUNS - 1))); do
 
   if [ -s "$SRC/Log/result/$NAME.txt" ]; then
     cp "$SRC/Log/result/$NAME.txt" "$OUTDIR/$NAME.txt"
-    lag=$(python3 -c "import rosbag,sys; b=rosbag.Bag(sys.argv[1]); print('%.1f' % (b.get_end_time() - float(open(sys.argv[2]).read().split()[-8])))" "$BAG" "$OUTDIR/$NAME.txt" 2>/dev/null || echo '?')
-    echo "wrote $OUTDIR/$NAME.txt ($(wc -l < "$OUTDIR/$NAME.txt") poses, last pose ${lag} s before bag end)"
+    lag=$(python3 -c "import rosbag,sys; b=rosbag.Bag(sys.argv[1]); d=b.get_end_time()-float(open(sys.argv[2]).read().split()[-8]); print('%.1f s' % d if abs(d) < 1e5 else 'n/a (sensor clock != bag clock)')" "$BAG" "$OUTDIR/$NAME.txt" 2>/dev/null || echo '?')
+    echo "wrote $OUTDIR/$NAME.txt ($(wc -l < "$OUTDIR/$NAME.txt") poses, last pose before bag end: ${lag})"
   else
     echo "!! no trajectory written -- check $OUTDIR/$NAME.algo.log"
   fi
