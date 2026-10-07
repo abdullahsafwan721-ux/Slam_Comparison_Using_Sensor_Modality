@@ -1,4 +1,9 @@
 sequence,run,metric,value_m
+eee_01,1,ape_rmse,0.025081
+eee_01,2,ape_rmse,0.025308
+eee_01,3,ape_rmse,0.025185
+eee_01,4,ape_rmse,0.025058
+eee_01,5,ape_rmse,0.025276
 eee_02,1,ape_rmse,0.022889
 eee_02,2,ape_rmse,0.022887
 eee_02,3,ape_rmse,0.022894

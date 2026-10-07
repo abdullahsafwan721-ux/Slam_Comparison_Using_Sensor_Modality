@@ -9,6 +9,11 @@ cbd_building_03,2,end_to_end,0.011
 cbd_building_03,3,end_to_end,0.010
 cbd_building_03,4,end_to_end,0.013
 cbd_building_03,5,end_to_end,0.012
+eee_01,1,ape_rmse,0.025051
+eee_01,2,ape_rmse,0.025102
+eee_01,3,ape_rmse,0.024889
+eee_01,4,ape_rmse,0.025127
+eee_01,5,ape_rmse,0.024963
 eee_02,1,ape_rmse,0.029931
 eee_02,2,ape_rmse,0.030370
 eee_02,3,ape_rmse,0.029814

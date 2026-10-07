@@ -23,7 +23,7 @@ docker compose run --rm -T eval bash /scripts/eval_fastlivo2.sh
 
 | Data | Where it came from | Config |
 |---|---|---|
-| NTU-VIRAL (9 seq.) | researchdata.ntu.edu.sg (zip, no Range support -> no resume); OneDrive mirror linked on the dataset page | shipped `NTU_VIRAL.yaml` + `camera_NTU_VIRAL.yaml` |
+| NTU-VIRAL (9 seq.) | researchdata.ntu.edu.sg (zip, no Range support -> no resume); eee_01 from NTU's OneDrive mirror linked on the dataset page (anonymous share, ranged download) | shipped `NTU_VIRAL.yaml` + `camera_NTU_VIRAL.yaml` |
 | NTU ground truth | `ntu-aris/viral_eval` `result_<seq>/leica_pose.csv` -> `viral_prep.py gt` | prism offset applied to the estimate (`viral_prep.py prism`) |
 | Private dataset | Google Drive folder from Global-LVBA (FAST-LIVO2 README §4); the README §1.4 SharePoint link is **dead (404)** | `avia_private_g<k>.yaml` + `camera_private_g<k>.yaml` per calibration group |
 
@@ -55,7 +55,7 @@ docker compose run --rm -T eval bash /scripts/eval_fastlivo2.sh
 | 6 | "In all [20] sequences ... < 0.01 m" | the paper claims < 0.01 m for six named sequences: HKU Cultural Center, CBD Building 03, Mining Tunnel (IX-C); SYSU 01, HKU Landmark, CBD Building 01 (IX-D, "in all sequences" = these three); the rest are mapping figures only | score only those against 0.01 m |
 | 7 | private bags have compressed images -> republish | raw `sensor_msgs/Image` on `/left_camera/image` (+ `/exposure_time`) | no republish needed (runner supports `REPUBLISH=` anyway) |
 | 8 | apt: image-transport only | the guide's republish step needs the `compressed` plugin | `ros-noetic-image-transport-plugins` added |
-| 9 | NTU-VIRAL downloads are bags | `.zip` (nya_01: zip inside a zip); NTU server ignores Range | `dl_ntu.sh`: retry, test zip, unpack |
+| 9 | NTU-VIRAL downloads are bags | `.zip` (nya_01: zip inside a zip); NTU server ignores Range and dropped eee_01 (8.7 GB) three times | `dl_ntu.sh`: retry, test zip, unpack; eee_01 from the official OneDrive mirror (4.2 GB, 8 ranged segments, zip CRC-tested) |
 | 10 | (none) | the authors' NTU runs **missed the first 0.3-0.5 s of data** on 5 of 9 sequences (their first pose is 3-5 scans late, i.e. `rosbag play` before the node subscribed) | "matched start" protocol (`livo2_ntu_matched.sh`): replay from their own first pose time |
 
 Recorded config discrepancies (kept as shipped, per the guide): NTU `max_layer 2` (paper 3), NTU
@@ -68,7 +68,7 @@ Recorded config discrepancies (kept as shipped, per the guide): NTU `max_layer 2
 
 | Seq | Repo | Paper "Ours" | Standard (all data) | dev. | Matched start | dev. | offset |
 |---|---|---|---|---|---|---|---|
-| eee_01 | 0.0271 | 0.068 | pending (download) | | | | |
+| eee_01 | 0.0271 | 0.068 | 0.0251 | -7.6 % green | 0.0252 | -7.1 % green | 0.1 s |
 | eee_02 | 0.0211 | 0.051 | 0.0302 | +43.1 % red | **0.0229** | **+8.5 % green** | 0.3 s |
 | eee_03 | 0.0261 | 0.068 | 0.0360 | +37.9 % red | **0.0299** | **+14.7 % green** | 0.5 s |
 | nya_01 | 0.0356 | 0.073 | 0.0393 | +10.4 % green | 0.0396 | +11.3 % green | 0 |
@@ -79,8 +79,8 @@ Recorded config discrepancies (kept as shipped, per the guide): NTU `max_layer 2
 | sbs_03 | 0.0311 | 0.060 | 0.0328 | +5.5 % green | 0.0297 | -4.6 % green | 0.2 s |
 
 Every result is 36-66 % *below* the paper's Table II (the released code is better than the
-benchmarked one, as the guide says). Against the repo: 7/8 green with the authors' data window,
-5/8 green from the bag start. **nya_02** is the one genuine deviation: identical data window
+benchmarked one, as the guide says). Against the repo: **8/9 green with the authors' data window,
+6/9 green from the bag start.** **nya_02** is the one genuine deviation: identical data window
 (4283/4283 identical pose stamps), but the error in the first 2-3 minutes is larger (0-60 s: 6.3 /
 12.9 cm vs the authors' 3.6 cm); after 180 s all runs track equally (3-4 cm). Across 10 runs the
 result is bimodal (4.6 / 8.4 cm); the authors' single run (3.4 cm) lies outside both modes.
@@ -105,8 +105,6 @@ Landmark 0.007 m) -- the config difference does not explain it. The rig is at re
 
 ## Not run
 
-- **eee_01**: the NTU repository dropped the 8.7 GB transfer three times (no resume). The OneDrive mirror
-  copy (4.22 GB) needs a browser download.
 - **Hilti'22/'23** (16 sequences): ground truth not public (online scoring only); skipped by decision.
 - **MARS-LVIG**: no published accuracy; not run.
 - **Mining Tunnel** (a < 0.01 m claim): not in the Drive folder. The other 14 private files carry no

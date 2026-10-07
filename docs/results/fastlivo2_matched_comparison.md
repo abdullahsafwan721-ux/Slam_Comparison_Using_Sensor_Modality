@@ -1,5 +1,6 @@
 | Sequence | Metric | Ours (median) | Runs | Spread | Repo README | Dev. vs repo | Band | Paper "Ours" | Dev. | Paper "w normal" | Dev. |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| eee_01 | ATE RMSE | 0.0252 | 5 | 0.0003 | 0.0271 | -7.1 % | green | 0.068 | -63.0 % | 0.066 | -61.8 % |
 | eee_02 | ATE RMSE | 0.0229 | 5 | 0.0000 | 0.0211 | +8.5 % | green | 0.051 | -55.1 % | 0.055 | -58.4 % |
 | eee_03 | ATE RMSE | 0.0299 | 5 | 0.0006 | 0.0261 | +14.7 % | green | 0.068 | -56.0 % | 0.070 | -57.2 % |
 | nya_01 | ATE RMSE | 0.0396 | 5 | 0.0007 | 0.0356 | +11.3 % | green | 0.073 | -45.7 % | 0.078 | -49.2 % |
