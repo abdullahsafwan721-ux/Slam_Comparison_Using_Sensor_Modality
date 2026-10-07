@@ -52,7 +52,15 @@ for r in $(seq "$R0" $((R0 + RUNS - 1))); do
   rosbag record -O "$OUTDIR/$NAME.bag" /aft_mapped_to_init __name:=rec >/dev/null 2>&1 & REC=$!
   sleep 1
   rosbag play --clock -d 1 "$BAG" "$@"
-  sleep 5                                     # the VIO lags the bag slightly; let it finish
+  # Drain: wait until the node has stopped appending poses (it can lag the bag when the
+  # CPU is shared; a fixed 5 s -- the guide's value -- silently cut ~33 s off sbs_01/03).
+  T="$SRC/Log/result/$NAME.txt"; prev=-1; still=0
+  for _ in $(seq 300); do
+    n=$(wc -l < "$T" 2>/dev/null || echo 0)
+    if [ "$n" = "$prev" ]; then still=$((still + 1)); else still=0; prev=$n; fi
+    [ "$still" -ge 5 ] && break             # unchanged for 10 s
+    sleep 2
+  done
   rosnode kill /rec >/dev/null 2>&1 || true; wait $REC 2>/dev/null || true
   kill -0 $ALGO 2>/dev/null || echo "!! fastlivo_mapping had already exited -- see $OUTDIR/$NAME.algo.log"
   stop $ALGO $REP
@@ -60,7 +68,8 @@ for r in $(seq "$R0" $((R0 + RUNS - 1))); do
 
   if [ -s "$SRC/Log/result/$NAME.txt" ]; then
     cp "$SRC/Log/result/$NAME.txt" "$OUTDIR/$NAME.txt"
-    echo "wrote $OUTDIR/$NAME.txt ($(wc -l < "$OUTDIR/$NAME.txt") poses)"
+    lag=$(python3 -c "import rosbag,sys; b=rosbag.Bag(sys.argv[1]); print('%.1f' % (b.get_end_time() - float(open(sys.argv[2]).read().split()[-8])))" "$BAG" "$OUTDIR/$NAME.txt" 2>/dev/null || echo '?')
+    echo "wrote $OUTDIR/$NAME.txt ($(wc -l < "$OUTDIR/$NAME.txt") poses, last pose ${lag} s before bag end)"
   else
     echo "!! no trajectory written -- check $OUTDIR/$NAME.algo.log"
   fi
