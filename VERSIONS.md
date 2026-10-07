@@ -18,5 +18,8 @@ Apt packages (ROS Noetic, Ubuntu 20.04) are not version-pinned; they come from t
 distribution's frozen Noetic repository. FAST-LIO2 image extras: velodyne_pointcloud,
 velodyne_msgs, nmea_navsat_driver (needed for the UTBM benchmark bags).
 
-FAST-LIVO2 build flags: its CMakeLists adds `-O3 -march=native -mtune=native` on x86, so the
-binary is tuned to the build host's CPU; "bit-for-bit rebuildable" holds only on the same class of CPU.
+FAST-LIVO2 build flags: upstream vikit and FAST-LIVO2 hard-code `-march=native`. The image
+replaces it with one explicit target for Sophus, vikit and FAST-LIVO2: `-march=skylake`
+(AVX2, the paper's i7-10700K class; build arg CPU_ARCH). Reason: on this AVX-512 host the
+native build lost track on NTU-VIRAL sbs_02 in 5/5 runs (1.1-308 m RMSE); the skylake build
+gives 2.97 cm in 3/3. The image also runs on any AVX2 x86 machine now.

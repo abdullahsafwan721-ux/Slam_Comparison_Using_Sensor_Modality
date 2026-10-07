@@ -8,6 +8,9 @@ ARG SOPHUS_COMMIT=a621ff2e56c56c839a6c40418d42c3c254424b5c
 ARG VIKIT_COMMIT=6c886c8e5d83997806e00294826d528cea3581dd
 ARG FASTLIVO2_COMMIT=0d2c0346107b75b59934975adec9a6eeeb913c64
 ARG JOBS=8
+# One explicit CPU target for Sophus, vikit and FAST-LIVO2 instead of upstream's
+# -march=native (see the note above the catkin_make step).
+ARG CPU_ARCH=skylake
 
 # README §2.2 asks for PCL>=1.8, Eigen>=3.3.4, OpenCV>=4.2. Ubuntu 20.04 ships
 # OpenCV 4.2 through ROS, which satisfies the minimum -- no source build needed
@@ -29,7 +32,7 @@ RUN git clone https://github.com/strasdat/Sophus.git /opt/Sophus \
   && sed -i 's/unit_complex_\.imag() = 0\.;/unit_complex_.imag(0.);/' sophus/so2.cpp \
   && grep -q 'unit_complex_.real(1.)' sophus/so2.cpp \
   && grep -q 'unit_complex_.imag(0.)' sophus/so2.cpp \
-  && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release \
+  && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=${CPU_ARCH} -mtune=${CPU_ARCH}" \
   && make -j${JOBS} && make install && ldconfig
 
 # ---- Vikit: camera models and math helpers. README §2.4: NOT the FAST-LIVO 1 fork.
@@ -39,6 +42,17 @@ RUN mkdir -p /ws/src \
 
 RUN git clone https://github.com/hku-mars/FAST-LIVO2.git /ws/src/FAST-LIVO2 \
  && cd /ws/src/FAST-LIVO2 && git checkout ${FASTLIVO2_COMMIT}
+
+# vikit and FAST-LIVO2 hard-code -march=native. On an AVX-512 CPU that produced a binary
+# that loses track on NTU-VIRAL sbs_02 in 5/5 runs (RMSE 1.1-308 m), while the same code
+# built for Skylake (AVX2, the paper's i7-10700K class) gives 2.97 cm in 3/3 runs -- most
+# likely Eigen's AVX-512 alignment/ABI fragility across separately built libraries. Build
+# everything for one explicit target instead; this also makes the image portable to any
+# AVX2 x86 machine, which -march=native was not. Greps fail the build if a patch misses.
+RUN sed -i "s/-march=native/-march=${CPU_ARCH}/" /ws/src/rpg_vikit/vikit_common/CMakeLists.txt /ws/src/rpg_vikit/vikit_ros/CMakeLists.txt \
+ && sed -i "s/-march=native -mtune=native/-march=${CPU_ARCH} -mtune=${CPU_ARCH}/" /ws/src/FAST-LIVO2/CMakeLists.txt \
+ && ! grep -n 'march=native' /ws/src/rpg_vikit/vikit_common/CMakeLists.txt /ws/src/rpg_vikit/vikit_ros/CMakeLists.txt /ws/src/FAST-LIVO2/CMakeLists.txt \
+ && grep -q "march=${CPU_ARCH} -mtune=${CPU_ARCH}" /ws/src/FAST-LIVO2/CMakeLists.txt
 
 RUN source /opt/ros/noetic/setup.bash && cd /ws \
  && catkin_make -j${JOBS} -DCMAKE_BUILD_TYPE=Release \
