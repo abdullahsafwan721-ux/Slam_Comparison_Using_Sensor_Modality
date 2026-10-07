@@ -1,0 +1,16 @@
+# FAST-LIVO2 private dataset, calibration group g3: HIT_Graffiti_Wall_01..04, SYSU_01, SYSU_02
+# = upstream config/camera_pinhole.yaml at 0d2c034 with intrinsics replaced from the dataset's own
+# calibration.yaml ("we recalibrate the device parameters every three months, so different
+# sequences have different intrinsic and extrinsic parameters"). Everything else unchanged.
+cam_model: Pinhole
+cam_width: 1280
+cam_height: 1024
+scale: 0.5
+cam_fx: 1311.89517127580
+cam_fy: 1311.36488586115
+cam_cx: 656.523841857393
+cam_cy: 504.136322840350
+cam_d0: -0.0780830982640722
+cam_d1: 0.146382433670493
+cam_d2: -0.00110111633050301
+cam_d3: -0.00110752991013068

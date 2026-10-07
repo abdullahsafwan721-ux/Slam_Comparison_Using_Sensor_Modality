@@ -1,0 +1,16 @@
+# FAST-LIVO2 private dataset, calibration group g2: HKU_Landmark, HKU_Centennial_Garden_01/02, HKU_Main_Building, HKU_Cultural_Center_01/02, HKU_Lecture_Center_01/02, CBD_Building_02, CBD_Building_03
+# = upstream config/camera_pinhole.yaml at 0d2c034 with intrinsics replaced from the dataset's own
+# calibration.yaml ("we recalibrate the device parameters every three months, so different
+# sequences have different intrinsic and extrinsic parameters"). Everything else unchanged.
+cam_model: Pinhole
+cam_width: 1280
+cam_height: 1024
+scale: 0.5
+cam_fx: 1176.2874292149932
+cam_fy: 1176.21585445307
+cam_cx: 592.1187382755453
+cam_cy: 509.0864309628322
+cam_d0: -0.13218037625958456
+cam_d1: 0.15360732717073536
+cam_d2: 0.00036918417348059815
+cam_d3: -0.00031715324469463964
