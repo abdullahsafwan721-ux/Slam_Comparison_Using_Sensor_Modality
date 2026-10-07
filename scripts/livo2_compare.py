@@ -20,6 +20,19 @@ NTU = {  # seq: (repo README, paper Ours, paper Ours w normal)
     "sbs_01": (0.0234, 0.062, 0.063), "sbs_02": (0.0283, 0.061, 0.048),
     "sbs_03": (0.0311, 0.060, 0.047),
 }
+# Private dataset (Google Drive copy linked from Global-LVBA; the README's SharePoint link is
+# dead). Paper claims "< 0.01 m" end-to-end only for these six (Sec. IX-C / IX-D):
+# HKU Cultural Center, CBD Building 03, Mining Tunnel (IX-C); SYSU 01, HKU Landmark,
+# CBD Building 01 (IX-D). Mining Tunnel is not in the Drive folder.
+PRIVATE = {  # seq: (paper name, paper duration, file duration, claim)
+    "hku_landmark":           ("HKU Landmark",        "1:31", "1:31", True),
+    "cbd_building_01":        ("CBD Building 01",     "1:58", "1:58", True),
+    "hku_cultural_center_02": ("HKU Cultural Center", "4:01", "4:01", True),
+    "cbd_building_03":        ("CBD Building 03",     "5:01", "4:26", True),
+    "sysu_01":                ("SYSU 01",             "4:40", "2:14", True),
+    "hku_cultural_center_01": ("(not in paper)",      "-",    "3:17", False),
+}
+
 def band(d): return "green" if abs(d) < 0.15 else "amber" if abs(d) <= 0.30 else "red"
 def pct(a, b): return "%+.1f %%" % (100 * (a - b) / b)
 
@@ -40,7 +53,14 @@ for (seq, metric), v in sorted(runs.items(), key=lambda kv: (kv[0][0] not in NTU
     elif seq.startswith("hilti"):
         print("| %s | %s | %.4f | %d | %.4f | - | - | no public GT (Hilti online scoring only) | - | - | - | - |" % (seq, metric, med, len(v), spread))
     elif metric == "end_to_end":
-        print("| %s | end-to-end | %.4f | %d | %.4f | - | - | %s (paper: < 0.01 m) | < 0.01 | - | - | - |" % (
-            seq, med, len(v), spread, "PASS" if med < 0.01 else "FAIL"))
+        name, pdur, fdur, claim = PRIVATE.get(seq, (seq, "?", "?", True))
+        if not claim:
+            verdict = "no paper claim (%s, %s)" % (name, fdur)
+        else:
+            verdict = ("PASS" if med < 0.01 else "FAIL") + " vs paper < 0.01 m"
+            if pdur != fdur:
+                verdict += "; NOT the paper's recording (file %s, paper %s)" % (fdur, pdur)
+        print("| %s | end-to-end | %.4f | %d | %.4f | - | - | %s | < 0.01 | - | - | - |" % (
+            seq, med, len(v), spread, verdict))
     else:
         print("| %s | %s | %.4f | %d | %.4f | - | - | - | - | - | - | - |" % (seq, metric, med, len(v), spread))
