@@ -3,7 +3,7 @@
 #   eval_fastlio2.sh                     # scores everything in /output/fastlio2
 #   RESULTS=/output/results/fl2_2026xxxx eval_fastlio2.sh
 #   T_MAX_DIFF=0.05 eval_fastlio2.sh     # GT association window (default 0.02 s)
-#   IN=/output/fastlio2_smoke eval_fastlio2.sh   # score another run folder
+#   IN=/output/tests/fastlio2 eval_fastlio2.sh   # score another run folder
 #
 # For each /output/fastlio2/<seq>_r<N>.bag:
 #   - convert /Odometry to TUM

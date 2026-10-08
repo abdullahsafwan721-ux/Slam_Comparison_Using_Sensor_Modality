@@ -131,7 +131,7 @@ Reading the table:
 
 ## Functional validation (not a paper comparison)
 
-`output/fastlio2_outdoor_run_100Hz_r1.tum` / `output/lio_run1.bag` (Sept 2026, old
+`output/diagnostics/fastlio2/avia_functional_test/` (`fastlio2_outdoor_run_100Hz_r1.tum`, `lio_run1.bag`; Sept 2026, old
 image, upstream `mapping_avia.launch`, i.e. `point_filter_num 3`):
 `outdoor_run_100Hz_2020-12-27-17-12-19.bag` is a demo bag from the FAST_LIO
 README's Google Drive folder. It is **not** one of the paper's benchmark

@@ -6,7 +6,7 @@
 #   bash scripts/livo2_benchmark.sh               # waits for pending downloads
 #   WAIT=0 bash scripts/livo2_benchmark.sh        # do what is ready now, then stop
 # Long jobs: start it as a systemd user unit so a closed terminal cannot kill it:
-#   systemd-run --user --unit=livo2-bench --collect bash scripts/livo2_benchmark.sh
+#   systemd-run --user --unit=livo2-bench --collect --working-directory="$PWD" bash scripts/livo2_benchmark.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 RUNS=${RUNS:-5}; WAIT=${WAIT:-1}
