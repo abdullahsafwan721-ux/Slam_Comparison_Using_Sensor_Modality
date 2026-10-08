@@ -1,0 +1,15 @@
+dataset,sequence,metric,repo_value_m,paper_value_m,ours_whole_bag_m,ours_matched_start_m,runs,deviation_whole_bag_vs_repo_pct,deviation_matched_vs_repo_pct,result,note
+NTU-VIRAL,eee_01,ATE RMSE,0.0271,0.068,0.0251,0.0252,5,-7.6,-7.1,green (<15%),
+NTU-VIRAL,eee_02,ATE RMSE,0.0211,0.051,0.0302,0.0229,5,+43.1,+8.5,green (<15%),
+NTU-VIRAL,eee_03,ATE RMSE,0.0261,0.068,0.0360,0.0299,5,+37.9,+14.7,green (<15%),
+NTU-VIRAL,nya_01,ATE RMSE,0.0356,0.073,0.0393,0.0396,5,+10.4,+11.3,green (<15%),
+NTU-VIRAL,nya_02,ATE RMSE,0.0339,0.075,0.0460,0.0460,5,+35.8,+35.8,red (>30%),early-phase convergence differs (bimodal runs)
+NTU-VIRAL,nya_03,ATE RMSE,0.0352,0.059,0.0345,0.0345,5,-1.8,-2.0,green (<15%),
+NTU-VIRAL,sbs_01,ATE RMSE,0.0234,0.062,0.0212,0.0213,5,-9.5,-9.0,green (<15%),
+NTU-VIRAL,sbs_02,ATE RMSE,0.0283,0.061,0.0298,0.0306,5,+5.1,+8.0,green (<15%),
+NTU-VIRAL,sbs_03,ATE RMSE,0.0311,0.060,0.0328,0.0297,5,+5.5,-4.6,green (<15%),
+FAST-LIVO2 private,HKU Landmark,end-to-end,,< 0.01,0.006,,5,,,PASS (< 0.01 m),
+FAST-LIVO2 private,HKU Cultural Center,end-to-end,,< 0.01,0.007,,5,,,PASS (< 0.01 m),file part 02 = paper's 4:01 sequence
+FAST-LIVO2 private,CBD Building 01,end-to-end,,< 0.01,0.036,,5,,,FAIL (paper < 0.01 m),genuine shortfall (0.1 % of the 34 m loop); paper-default config also fails
+FAST-LIVO2 private,CBD Building 03,end-to-end,,< 0.01,0.012,,5,,,not the paper's recording,"public file is 4:26, paper's is 5:01 (different cut)"
+FAST-LIVO2 private,SYSU 01,end-to-end,,< 0.01,0.008,,5,,,not the paper's recording,"public file is 2:14, paper's is 4:40 (different recording)"

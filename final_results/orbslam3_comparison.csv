@@ -1,0 +1,13 @@
+dataset,sequence,metric,paper_value_m,our_median_m,runs,deviation_pct,result,note
+EuRoC MAV,MH01,ATE RMSE,0.036,0.0439,5,+21.9,amber (15-30%),
+EuRoC MAV,MH02,ATE RMSE,0.033,0.0295,5,-10.6,green (<15%),
+EuRoC MAV,MH03,ATE RMSE,0.035,0.0307,5,-12.3,green (<15%),
+EuRoC MAV,MH04,ATE RMSE,0.051,0.0456,5,-10.5,green (<15%),
+EuRoC MAV,MH05,ATE RMSE,0.082,0.0608,5,-25.8,amber (15-30%),
+EuRoC MAV,V101,ATE RMSE,0.038,0.0377,5,-0.9,green (<15%),
+EuRoC MAV,V102,ATE RMSE,0.014,0.0141,5,+0.7,green (<15%),
+EuRoC MAV,V103,ATE RMSE,0.024,0.0268,5,+11.9,green (<15%),
+EuRoC MAV,V201,ATE RMSE,0.032,0.0370,5,+15.6,amber (15-30%),
+EuRoC MAV,V202,ATE RMSE,0.014,0.0115,5,-17.7,amber (15-30%),
+EuRoC MAV,V203,ATE RMSE,0.024,0.0218,5,-9.1,green (<15%),run 2 lost tracking (0.69 m); median unaffected
+EuRoC MAV,AVERAGE,ATE RMSE,0.035,0.0327,,-6.1,green (<15%),mean of the 11 medians

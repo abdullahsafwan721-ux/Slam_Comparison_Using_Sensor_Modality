@@ -1,0 +1,17 @@
+dataset,paper_id,sequence,metric,paper_value_m,independent_rerun_m,our_median_m,runs,deviation_vs_paper_pct,deviation_vs_independent_pct,result,note
+LIO-SAM,liosam 2,liosam2_garden,end-to-end,< 0.1,,0.027,5,,,PASS (< 0.1 m),end-to-end drift over 464 m
+LIO-SAM,liosam 3,liosam3_campus,end-to-end,9.50,,10.208,5,+7.5,,green (<15%),
+LIO-SAM,liosam 1,liosam1_park,ATE RMSE,4.58,,0.510,5,-88.9,,lower than paper,no independent re-run available
+NCLT,nclt 4,nclt4,ATE RMSE,8.71,,1.793,5,-79.4,,lower than paper,no independent re-run available
+NCLT,nclt 5,nclt5,ATE RMSE,6.68,1.40,1.468,5,-78.0,+4.8,green (<15%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+NCLT,nclt 6,nclt6,ATE RMSE,20.96,2.46,2.428,5,-88.4,-1.3,green (<15%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+NCLT,nclt 7,nclt7,ATE RMSE,6.58,2.37,2.107,5,-68.0,-11.1,green (<15%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+NCLT,nclt 8,nclt8,ATE RMSE,30.08,4.37,2.316,5,-92.3,-47.0,lower than both references,runs bimodal (2.0-4.7 m); the independent 4.37 m lies inside our range
+NCLT,nclt 9,nclt9,ATE RMSE,5.56,0.90,0.955,5,-82.8,+6.1,green (<15%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+NCLT,nclt 10,nclt10,ATE RMSE,16.29,,6.773,5,-58.4,,lower than paper,no independent re-run available
+UTBM,utbm 8,utbm8,ATE RMSE,27.29,15.13,13.171,5,-51.7,-12.9,green (<15%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+UTBM,utbm 9,utbm9,ATE RMSE,51.60,21.21,19.729,5,-61.8,-7.0,green (<15%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+UTBM,utbm 10,utbm10,ATE RMSE,16.80,10.81,13.169,5,-21.6,+21.8,amber (15-30%) vs independent,paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference
+LiLi-OM,lili 6,lili6_schloss1,end point vs bag GNSS (proxy),< 0.1,,1.880,5,,,not checkable,paper's reference end points unpublished; bag ends 21 m from its start; proxy at GNSS noise level
+LiLi-OM,lili 7,lili7_schloss2,end-to-end,1.63,,11.491,5,+605.0,,red (>30%),"genuine shortfall (end vs bag GNSS proxy 8.86 m); IMU/extrinsic/downsample variants tested, none better"
+LiLi-OM,lili 8,lili8_east,end point vs bag GNSS (proxy),17.39,,17.700,5,+1.8,,proxy only,bag ends 185 m from its start; metre-level GNSS reference
