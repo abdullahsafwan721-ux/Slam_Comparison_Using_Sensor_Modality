@@ -74,7 +74,7 @@ for ds, pid, s, metric, p in FL2:
         m, n = proxy[s]; metric = "end point vs bag GNSS (proxy)"; dp = "%+.1f" % (100 * pct(m, p))
         result = "proxy only"; note = "bag ends 185 m from its start; metre-level GNSS reference"
     elif s == "lili7_schloss2":
-        dp = "%+.1f" % (100 * pct(m, p)); result = band(pct(m, p)); note = "genuine shortfall (end vs bag GNSS proxy 8.86 m); IMU/extrinsic/downsample variants tested, none better"
+        dp = "%+.1f" % (100 * pct(m, p)); result = band(pct(m, p)); note = "path ends at its start (LiLi-OM Fig. 9); Xsens IMU as named in the paper (fixed 2026-10-09, was 11.49 m with the Horizon IMU)"
     elif metric == "ATE RMSE":
         dp = "%+.1f" % (100 * pct(m, p))
         if ind:
@@ -83,6 +83,10 @@ for ds, pid, s, metric, p in FL2:
                 result = "lower than both references"; note = "runs bimodal (2.0-4.7 m); the independent 4.37 m lies inside our range"
         else:
             result = "lower than paper"; note = "no independent re-run available"
+        if s == "nclt9":
+            note = "the paper's own July-2021 code gives 0.92 m here; Faster-LIO (FAST-LIO2 authors' group) reports 0.91 m: paper value not reproducible"
+        elif s == "nclt5":
+            note = "Faster-LIO reports 0.82 m for FAST-LIO2 here; the two independent re-runs disagree"
         if not note: note = "paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference"
     else:
         dp = "%+.1f" % (100 * pct(m, p)); result = band(pct(m, p))
@@ -144,7 +148,7 @@ def T(rows, widths, colour_col=None):
     t.setStyle(TableStyle(st)); return t
 def footer(c, doc):
     c.saveState(); c.setFont("Helvetica", 7.3); c.setFillColor(colors.HexColor("#6b7280"))
-    c.drawString(18 * mm, 10 * mm, "SLAM_Comparison_Sensor_Modality - dockerization results (2026-10-08)")
+    c.drawString(18 * mm, 10 * mm, "SLAM_Comparison_Sensor_Modality - dockerization results (updated 2026-10-09)")
     c.drawRightString(A4[0] - 18 * mm, 10 * mm, "Page %d" % doc.page); c.restoreState()
 
 orb_green = sum(1 for r in orb_rows[:-1] if r[7].startswith("green")); orb_amber = sum(1 for r in orb_rows[:-1] if r[7].startswith("amber"))
@@ -164,7 +168,7 @@ S = [P("SLAM Algorithms in Docker: Results vs Published Values", ParagraphStyle(
          "%d green, %d amber, 0 red; average %.1f cm vs paper %.1f cm (%+.0f %%)" % (orb_green, orb_amber, 100 * am, 100 * ap, 100 * pct(am, ap)),
          "green: reproduced"],
         ["FAST-LIO2", "16 of the paper's 19 sequences (LIO-SAM, NCLT, UTBM, LiLi-OM)",
-         "%d of %d RMSE sequences green vs an independent re-run (utbm 10 amber, nclt 8 better than both); garden PASS; campus +7.5 %%; lili 7 red" % (fl2_ind_green, len(fl2_ind_rows)),
+         "end-to-end: garden PASS, campus +7.5 %%, lili 7 +%.1f %%; RMSE: %d of %d green vs an independent re-run (utbm 10 amber, nclt 8 better than both)" % (100 * pct(e2e["lili7_schloss2"][0], 1.63), fl2_ind_green, len(fl2_ind_rows)),
          "green: reproduced (paper's RMSE protocol differs)"],
         ["FAST-LIVO2", "NTU-VIRAL 9 sequences + private dataset",
          "NTU: %d of 9 green vs the authors' published runs; private: %d PASS (< 1 cm), 1 FAIL, 2 files differ from the paper's" % (ntu_green, priv_pass),
@@ -193,7 +197,11 @@ S += [P("FAST-LIO2 — image evtol/fastlio2:v1", h2)]
 S += B(["Livox SDK and driver pinned to release tags, FAST_LIO pinned; Velodyne and NMEA tools added so the UTBM bags (raw packets, GPS as text) can be used.",
         "One config per dataset (topics, LiDAR type, IMU-LiDAR extrinsic), and the paper's own parameters (1:4 downsampling, 0.5 m voxels, 1000 m map) forced for every run.",
         "Fixes that made the low deviation possible: per-point time units measured on every bag (the guide's values would have disabled motion compensation); "
-        "NCLT bags built with the authors' own converter; UTBM ground truth parsed from all 4633 RTK fixes (the guide's method kept 85); runs that hung at the end stopped safely."])
+        "NCLT bags built with the authors' own converter; UTBM ground truth parsed from all 4633 RTK fixes (the guide's method kept 85); runs that hung at the end stopped safely.",
+        "Review (9 Oct 2026): every config re-checked against the paper and the dataset authors' own files. lili now uses the Xsens IMU the paper names "
+        "(this fixed lili 7); UTBM uses the LiDAR position published with the dataset and correctly time-stamped scans. The images were rebuilt from scratch and reproduce the earlier runs. "
+        "The paper's own July-2021 FAST_LIO code was built as a second image: it gives the same results as the pinned version, which confirms the "
+        "remaining differences come from the paper's evaluation, not from the container."])
 S += [P("FAST-LIVO2 — image evtol/fastlivo2:v1", h2)]
 S += B(["Sophus (2012 version, 2-line C++11 patch), the authors' vikit fork and FAST-LIVO2 pinned; the authors' shipped configs used unchanged.",
         "Built for one explicit CPU target (Skylake/AVX2, the paper's CPU class) instead of -march=native: the native build on this AVX-512 machine lost track in 5/5 runs of one sequence; the fixed build is stable and portable.",
@@ -208,8 +216,9 @@ S += [PageBreak(), P("2. Comparison tables", h1), P("2.1 ORB-SLAM3 — EuRoC MAV
         [[r[2], r[3], r[4], r[5] or "-", r[6], (r[8] + " %") if r[8] else "-", (r[9] + " %") if r[9] else "-", r[10]] for r in fl2_rows],
         [27 * mm, 25 * mm, 13 * mm, 20 * mm, 14 * mm, 19 * mm, 21 * mm, 35 * mm], colour_col=7),
       P("Paper: Xu et al., IEEE T-RO 2022, Tables IV/V (1000 m map). Independent re-run: Yuan et al., arXiv 2307.07792, Table II. "
-        "Our RMSEs are 22–92 % below the paper's on every sequence, and the independent group finds the same: the paper aligned its "
-        "trajectories differently (not stated). Against the like-for-like independent reference the container is green.", small),
+        "Our RMSEs are 20–92 % below the paper's on every sequence. Two independent groups find the same, and so does the paper's own "
+        "July-2021 code run in this container (nclt 9: 0.92 m; Faster-LIO, from the FAST-LIO2 authors' group: 0.91 m; paper: 5.56 m). "
+        "The paper aligned its trajectories in an unstated way, so the like-for-like independent re-runs are the targets; against them the container is green.", small),
       PageBreak(), P("2.3 FAST-LIVO2 (m)", h2),
       T([["Sequence", "Metric", "Authors' repo", "Paper", "Ours, whole bag", "Ours, authors' start", "Dev. (authors' start)", "Result"]] +
         [[r[1], r[2], r[3] or "-", r[4], r[5], r[6] or "-", (r[9] + " %") if r[9] else "-", r[10]] for r in lv2_rows],
@@ -220,7 +229,8 @@ S += [PageBreak(), P("2. Comparison tables", h1), P("2.1 ORB-SLAM3 — EuRoC MAV
       PageBreak(), P("3. Remaining deviations, explained", h1)]
 S += B(["<b>FAST-LIVO2 nya_02 (+36 %).</b> Same data window as the authors; only the first 2–3 minutes in a dim auditorium converge worse. Runs split into two modes (4.6 / 8.4 cm); the authors' single run (3.4 cm) is outside both.",
         "<b>FAST-LIVO2 CBD Building 01 (3.6 cm vs &lt; 1 cm).</b> Real drift; the paper's default settings give 3.2 cm, so configuration is not the cause. Still only 0.1 % of the loop.",
-        "<b>FAST-LIO2 lili 7 (11.5 m vs 1.63 m).</b> The one genuine FAST-LIO2 shortfall; alternative IMU, extrinsic and downsampling settings were tested and were all equal or worse. Most likely cause: the current FAST_LIO code vs the 2021 version used in the paper.",
+        "<b>FAST-LIO2 lili 7: fixed.</b> It was 11.5 m (+605 %%) because the config used the LiDAR's built-in IMU; the paper names the separate Xsens IMU. With the Xsens IMU and LiLi-OM's published extrinsic: %.2f m vs 1.63 m. FAST-LIO2 now has no shortfall against a like-for-like reference." % e2e["lili7_schloss2"][0],
+        "<b>FAST-LIO2 utbm 10 (+%.0f %% vs independent re-run, amber).</b> Within the spread between published re-runs. UTBM was re-run after two input fixes (the dataset's documented LiDAR position; scan time stamps), which brought utbm 8/9 to within 5 %% of the independent re-run." % (100 * pct(ape["utbm10"][0], 10.81)),
         "<b>Not checkable rather than wrong.</b> lili 6 / lili 8 (reference end points unpublished, bags do not end at their start); CBD Building 03 and SYSU 01 (public files are different recordings from the paper's).",
         "<b>ORB-SLAM3 ambers</b> (MH01, MH05, V201, V202) are 0.3–2.1 cm absolute differences on 1–8 cm errors; the average is green (−6 %)."])
 S += [P("Not run", h2)]

@@ -21,7 +21,7 @@ docker compose run --rm -T eval bash /scripts/eval_fastlio2.sh
 
 | Dataset | Config | Runner | Ground truth |
 |---|---|---|---|
-| lili (KA-Urban) | `lili.yaml` | `run_fastlio2.sh` | none (end-to-end); GNSS proxy `gnssref_<seq>.tum` from `/gnss` |
+| lili (KA-Urban) | `lili.yaml` (Xsens `/imu/data`) | `run_fastlio2.sh` | none (end-to-end); GNSS proxy `gnssref_<seq>.tum` from `/gnss` |
 | liosam park/garden | `liosam_park_garden.yaml` | `run_fastlio2.sh` | park: GPS in bag |
 | liosam campus | `liosam_campus.yaml` | `run_fastlio2.sh` | none (end-to-end) |
 | nclt | `nclt.yaml` | `nclt_to_bag.sh`, then `run_fastlio2.sh` | `fl2_gt.py nclt groundtruth_<date>.csv` |
@@ -40,8 +40,9 @@ each run as `<seq>_r<N>.params.yaml`.
 - Paper targets (Tables IV, V, VIII) and defaults (Sec. VI-A) match the guide.
 - FAST_LIO reads `point_filter_num` etc. as global params (`laserMapping.cpp`), so
   `rosparam set /point_filter_num 4` is effective.
-- lili IMU: paper Table II lists lili's IMU as "6-axis, 200 Hz" = the Horizon's
-  built-in `/livox/imu`, not the 9-axis Xsens `/imu/data`.
+- lili IMU: ~~the Horizon's built-in `/livox/imu`~~ -- **wrong, corrected 2026-10-09**:
+  the paper's text (Sec. VI-A) says lili is "sampled at 200 Hz by a 6-axis Xsens
+  MTi-670 IMU", i.e. `/imu/data`. See correction 15.
 - NCLT extrinsic re-derived independently from NCLT paper Table 4 and the authors'
   converter: identical to the guide's matrix (1.08 deg from identity).
 - LIO-SAM: README confirms park/garden use `/imu_raw` + diag(-1,1,-1); campus uses
@@ -65,6 +66,10 @@ each run as `<seq>_r<N>.params.yaml`.
 | 12 | UTBM GT: replay `/nmea_sentence` through `nmea_navsat_driver` at `-r 20` | kept 85 of 4633 GGA fixes on 2018-07-19 | parse GGA directly (`utbm_gt.sh`), RTK fixed+float; 2019-01-31 has no RTK -> falls back to GPS/DGPS with a warning |
 | 13 | end-to-end skips a fixed 2 s | LIO-SAM garden is already moving at 2 s: 0.134 m instead of 0.027 m | skip only a detected init transient (> 20 m/s steps in the first 5 s) |
 | 14 | (LIO-SAM topic `points_raw`) | bag topic is `/points_raw`; NCLT converter writes `points_raw` | per-dataset topic in `fl2_benchmark.sh` |
+| 15 | lili IMU = Horizon built-in `/livox/imu` (and this log said so until 2026-10-09) | paper Sec. VI-A: Xsens MTi-670 at 200 Hz = `/imu/data`. It sits rotated 180 deg about z w.r.t. the Horizon (LiLi-OM `config_ka_urban_*.yaml`; confirmed on the data by a gyro fit, 1-2 deg) -- which is why the earlier Xsens trial with an identity extrinsic diverged | `lili.yaml` now uses `/imu/data` with LiLi-OM's extrinsic; lili 7: 11.49 m -> **1.66 m** (paper 1.63). Old config kept as `lili_horizon_imu.yaml` |
+| 16 | lili `blind: 4` (upstream horizon.yaml) | meaning changed after the paper: the July-2021 code's Livox test `dx || dy || dz && r^2 > blind` practically never filtered (operator precedence); since Apr 2023 (fa4cf34) `blind` is a 3-D minimum range, so 4 drops everything within 4 m | `blind: 0.01` (paper behaviour). Measured effect: none (11.49 -> 11.61 m with the old IMU) |
+| 17 | UTBM extrinsic: none published, start from zero + online estimation | UTBM's own `launch/utbm_dataset_play.launch` places `velodyne_left` at (-0.5, 1.4, 1.5) m, rpy 0, and `base_imu` at the origin; SR-LIO / Semi-Elastic LIO `config/utbm.yaml` use the same | `extrinsic_T: [-0.5, 1.4, 1.5]` (estimation stays on, as in the paper-era code). Effect within run spread: 13.17/19.73/13.17 -> 13.22/19.79/13.48 m |
+| 18 | (UTBM scans converted as recorded) | the bag stamps every VelodyneScan with its LAST packet (+0.0995 s after the first) and velodyne_pointcloud makes per-point times relative to that stamp, i.e. -0.0995..+0.0005 s; FAST-LIO assumes header = scan start and times 0..0.1 s, so its de-skew walked the IMU poses out of order. FAST_LIO's `time_offset_lidar_to_imu` is applied to Livox messages only | `scripts/utbm_restamp.py` (started by `run_fastlio2_utbm.sh`) re-stamps each scan with its first packet: times 0..0.100 s, checked on 200 scans. utbm 8/9/10: 13.22/19.79/13.48 -> **14.47/20.27/13.47 m** (independent 15.13/21.21/10.81) |
 
 ## Findings on the paper's numbers
 
@@ -81,7 +86,8 @@ sensitivity on nclt 9 run 1:
 | `--align --n_to_align 1000` (first ~100 s) | 4.20 |
 | `--align_origin` / none | 371 / 287 (frames differ) |
 
-**lili 7 diagnostics** (one run each, Schloss-2):
+**lili 7 diagnostics** (one run each, Schloss-2; all with the Horizon IMU, i.e. before
+correction 15 -- kept for the record):
 
 | Variant | first-to-last | end vs GNSS |
 |---|---|---|
@@ -90,44 +96,122 @@ sensitivity on nclt 9 run 1:
 | extrinsic estimation off | 11.3 m | 8.9 m |
 | `point_filter_num 3` (upstream launch value) | 14.7 m | 12.3 m |
 
-The paper configuration is the best of these. Remaining hypothesis: the paper used
-the July-2021 FAST_LIO code; the pin is the 2023+ HEAD.
+None of these was the cause. The July-2021 code also gives 11.66 m with the Horizon IMU
+(5/5 runs, `output/diagnostics/fastlio2/paper2021_code/`). The cause was the IMU: with
+the Xsens the paper names, lili 7 = 1.66 m (correction 15).
 
-## Results (median of 5 runs, final, 2026-10-07)
+## Review of 2026-10-09 (requested: "FAST-LIO2 results not promising")
+
+Everything was re-checked against primary sources; the outcome is corrections 15-18
+above plus the evidence below. All re-runs: 5 runs each, `scripts/fl2_review.sh`.
+
+**1. The container rebuilds and reproduces.** After a reboot the snap Docker daemon
+had taken `/var/run/docker.sock` (images of the apt daemon invisible), so base,
+fastlio2 and eval were rebuilt from the Dockerfiles: no edits were needed, and the
+rebuilt image reproduces liosam 2 garden exactly (0.027 m, 5/5) and nclt 9 within
+run spread (0.97 vs 0.955 m) (`output/diagnostics/fastlio2/review_20261009_rebuild_control/`).
+To restore the original images: `sudo snap disable docker && sudo systemctl restart
+docker.socket docker.service`.
+
+**2. The paper's RMSE column (Table IV) is not reproducible by anyone, including the
+authors' own code.** The paper never states its alignment. Evidence that our ~5x lower
+values are the correct, standard ATE:
+
+| nclt 9 (2013-01-10), ATE RMSE | m |
+|---|---|
+| FAST-LIO2 paper, Table IV | 5.56 |
+| **this container, FAST_LIO HEAD** | **0.955** |
+| this container, the paper's own July-2021 code (`evtol/fastlio2:paper2021`, f159d57) | 0.924 (5 runs, 0.904-0.945) |
+| Faster-LIO paper (Bai et al., RA-L 2022; co-author F. Zhang = FAST-LIO2's PI), FastLIO2 column | 0.91 |
+| Semi-Elastic LIO (Yuan et al., arXiv 2307.07792), FAST-LIO2 column | 0.90 |
+
+Faster-LIO's "Dist" column repeats FAST-LIO2's Table VIII distances (0.26 km, 1.86 km,
+0.60 km), which identifies its nclt_2 / nclt_4 / ulhk_1 as FAST-LIO2's nclt 9 / nclt 5 /
+ulhk 4. No single alternative alignment (first N s, 4-DoF, origin) reproduces Table IV
+across sequences either (tested on all 11 RMSE sequences). The like-for-like targets
+for RMSE sequences are therefore the independent re-runs; the paper column is kept for
+transparency.
+
+**3. Sources used:** FAST-LIO2 paper arXiv 2107.06829 (Sec. VI-A, Tables IV, V, VIII);
+LiLi-OM paper arXiv 2010.13150 (Sec. 5.3.2, Fig. 9: Schloss-2 "path ends at origin")
+and repo KIT-ISAS/lili-om (KA-Urban extrinsics); Faster-LIO paper (gaoxiang12/faster-lio
+doc/faster-lio.pdf, Table II); Semi-Elastic LIO arXiv 2307.07792 (Tables I, II) and
+repos ZikangYuan/sr_lio, semi_elastic_lio (`config/utbm.yaml`, `config/nclt.yaml`);
+UTBM repo epan-utbm/utbm_robocar_dataset (`launch/utbm_dataset_play.launch`);
+hku-mars/FAST_LIO history (f159d57, 94973cb, fa4cf34).
+
+**4. Paper-era code (`fastlio2_paper2021` compose service).** FAST_LIO f159d57 (19 Jul
+2021, 5 days after arXiv v1) builds unchanged in the same Dockerfile
+(`--build-arg FASTLIO2_COMMIT=...`). It is a diagnostic only; HEAD stays the benchmark
+build. Results (`output/diagnostics/fastlio2/paper2021_code/`, 5 runs each, same
+configs as HEAD at the time, i.e. lili still with the Horizon IMU, UTBM not re-stamped):
+
+| Sequence | Metric | Paper | July-2021 code | HEAD (benchmark) |
+|---|---|---|---|---|
+| liosam 2 garden | end-to-end | < 0.1 | 0.231 (FAIL) | 0.027 (PASS) |
+| liosam 3 campus | end-to-end | 9.50 | 12.93 (+36 %) | 10.21 (+7.5 %) |
+| liosam 1 park | ATE | 4.58 | 0.870 | 0.510 |
+| lili 7 (Horizon IMU) | end-to-end | 1.63 | 11.66 | 11.61 (1.66 with the Xsens IMU) |
+| nclt 9 | ATE | 5.56 | 0.924 | 0.955 |
+| utbm 8 / 9 / 10 | ATE | 27.29 / 51.60 / 16.80 | 6.37 / 9.51 / 9.75 | 14.47 / 20.27 / 13.47 |
+
+The July-2021 code divides the Velodyne `time` field by 1000 (it assumes microseconds),
+so on LIO-SAM and UTBM clouds (seconds) it effectively runs **without de-skew**. That
+costs accuracy on LIO-SAM (garden FAILs) but helps on UTBM. Neither result changes the
+benchmark: HEAD is the code the authors maintain, and it reproduces the paper's
+end-to-end numbers and the independent re-runs.
+
+**5. Open finding: de-skew on UTBM.** HEAD with de-skew switched off (`timestamp_unit 3`)
+gives utbm 8 = 6.30 m, like the July-2021 code. Ruled out as the cause, one utbm 8 run
+each (`output/diagnostics/fastlio2/review_20261009_utbm_variants/`): packet timing
+(steps 0.553 ms, p99 0.589 ms), scan stamps (correction 18), IMU axis signs (gyro z vs
+trajectory yaw rate: gain 0.998), extrinsic yaw +-90 deg (14.0 / 14.9 m), online
+extrinsic estimation off (14.6 m), LiDAR-IMU clock offset +-50 ms (11.8 / 12.5 m). The
+independent re-runs (Semi-Elastic LIO 15.13 m on utbm 8; Faster-LIO in LIO-PPF, arXiv 2302.14674:
+14.6-26.5 m on five UTBM sessions)
+match ours with de-skew on, so the benchmark keeps the standard FAST-LIO2 method.
+
+## Results (median of 5 runs, final, 2026-10-09)
 
 Full table: `docs/results/fastlio2_comparison.md` (per-run values in
 `fastlio2_summary.csv`; evo 1.31.1, `--align` SE(3), `--t_max_diff 0.02`).
-"Independent" = FAST-LIO2 re-run by Yuan et al., arXiv 2307.07792, Table II.
+Re-run on 2026-10-09: lili 6/7/8 (Xsens IMU, correction 15) and utbm 8/9/10 (UTBM
+extrinsic and scan stamps, corrections 17-18); all other rows are the 2026-10-07 runs,
+unchanged.
+"Independent" = FAST-LIO2 re-run by Yuan et al., arXiv 2307.07792, Table II;
+"Faster-LIO" = FastLIO2 column of Bai et al., RA-L 2022, Table II.
 
-| Paper id | Sequence | Metric | Paper | Ours | Spread | vs paper | Independent | vs independent |
-|---|---|---|---|---|---|---|---|---|
-| liosam 2 | garden | end-to-end | < 0.1 | **0.027** | 0.000 | **PASS** | - | - |
-| liosam 3 | campus | end-to-end | 9.50 | 10.21 | 0.17 | **+7.5 % green** | - | - |
-| lili 6 | Schloss-1 | end-to-end | < 0.1 | 21.0 gap / 1.88 GNSS proxy | 0.02 / 0.03 | not comparable (ends 21 m from start) | - | - |
-| lili 7 | Schloss-2 | end-to-end | 1.63 | 11.49 | 0.07 | **+605 % red** | - | - |
-| lili 8 | East | end-to-end | 17.39 | 181 gap / 17.70 GNSS proxy | 1.2 / 4.3 | not comparable (ends 185 m from start); proxy +1.8 % | - | - |
-| liosam 1 | park | ATE RMSE | 4.58 | 0.510 | 0.002 | -88.9 % | - | - |
-| nclt 9 | 2013-01-10 | ATE RMSE | 5.56 | 0.955 | 0.017 | -82.8 % | 0.90 | **+6.1 % green** |
-| nclt 7 | 2012-06-15 | ATE RMSE | 6.58 | 2.107 | 0.081 | -68.0 % | 2.37 | **-11.1 % green** |
-| nclt 5 | 2012-04-29 | ATE RMSE | 6.68 | 1.468 | 0.027 | -78.0 % | 1.40 | **+4.8 % green** |
-| nclt 4 | 2012-01-15 | ATE RMSE | 8.71 | 1.793 | 0.117 | -79.4 % | - | - |
-| nclt 10 | 2013-04-05 | ATE RMSE | 16.29 | 6.773 | 1.274 | -58.4 % | - | - |
-| nclt 6 | 2012-05-11 | ATE RMSE | 20.96 | 2.428 | 0.217 | -88.4 % | 2.46 | **-1.3 % green** |
-| nclt 8 | 2012-12-01 | ATE RMSE | 30.08 | 2.316 | 2.714 | -92.3 % | 4.37 | -47.0 % red (runs bimodal 2.0-4.7; 4.37 inside range) |
-| utbm 8 | 2018-07-19 | ATE RMSE | 27.29 | 13.17 | 0.42 | -51.7 % | 15.13 | **-12.9 % green** |
-| utbm 9 | 2019-01-31 | ATE RMSE | 51.60 | 19.73 | 0.81 | -61.8 % | 21.21 | **-7.0 % green** |
-| utbm 10 | 2019-04-18 | ATE RMSE | 16.80 | 13.17 | 0.24 | -21.6 % amber | 10.81 | +21.8 % amber |
+| Paper id | Sequence | Metric | Paper | Ours | Spread | vs paper | Independent | vs independent | Faster-LIO | vs Faster-LIO |
+|---|---|---|---|---|---|---|---|---|---|---|
+| liosam 2 | garden | end-to-end | < 0.1 | **0.027** | 0.000 | **PASS** | - | - | - | - |
+| liosam 3 | campus | end-to-end | 9.50 | 10.21 | 0.17 | **+7.5 % green** | - | - | - | - |
+| lili 7 | Schloss-2 | end-to-end | 1.63 | **1.66** | 0.41 | **+2.0 % green** | - | - | - | - |
+| lili 6 | Schloss-1 | end-to-end | < 0.1 | 21.2 gap / 1.91 GNSS proxy | 0.00 / 0.02 | not comparable (ends 21 m from start) | - | - | - | - |
+| lili 8 | East | end-to-end | 17.39 | 181 gap / 13.84 GNSS proxy | 0.4 / 3.3 | not comparable (ends 185 m from start); proxy -20 % | - | - | - | - |
+| liosam 1 | park | ATE RMSE | 4.58 | 0.510 | 0.002 | -88.9 % | - | - | - | - |
+| nclt 9 | 2013-01-10 | ATE RMSE | 5.56 | 0.955 | 0.017 | -82.8 % | 0.90 | **+6.1 % green** | 0.91 | **+4.9 % green** |
+| nclt 7 | 2012-06-15 | ATE RMSE | 6.58 | 2.107 | 0.081 | -68.0 % | 2.37 | **-11.1 % green** | - | - |
+| nclt 5 | 2012-04-29 | ATE RMSE | 6.68 | 1.468 | 0.027 | -78.0 % | 1.40 | **+4.8 % green** | 0.82 | +79 % red |
+| nclt 4 | 2012-01-15 | ATE RMSE | 8.71 | 1.793 | 0.117 | -79.4 % | - | - | - | - |
+| nclt 10 | 2013-04-05 | ATE RMSE | 16.29 | 6.773 | 1.274 | -58.4 % | - | - | - | - |
+| nclt 6 | 2012-05-11 | ATE RMSE | 20.96 | 2.428 | 0.217 | -88.4 % | 2.46 | **-1.3 % green** | - | - |
+| nclt 8 | 2012-12-01 | ATE RMSE | 30.08 | 2.316 | 2.714 | -92.3 % | 4.37 | -47.0 % (runs bimodal 2.0-4.7; 4.37 inside range) | - | - |
+| utbm 8 | 2018-07-19 | ATE RMSE | 27.29 | 14.47 | 0.29 | -47.0 % | 15.13 | **-4.4 % green** | - | - |
+| utbm 9 | 2019-01-31 | ATE RMSE | 51.60 | 20.27 | 0.48 | -60.7 % | 21.21 | **-4.4 % green** | - | - |
+| utbm 10 | 2019-04-18 | ATE RMSE | 16.80 | 13.47 | 0.25 | -19.8 % amber | 10.81 | +24.6 % amber | - | - |
 
 Reading the table:
-- **End-to-end sequences that genuinely return to their start** (garden, campus):
-  garden PASS, campus +7.5 %. These match the paper directly.
-- **ATE RMSE sequences**: against the independent reproduction, 6 of 8 shared
-  sequences are green, 1 amber, 1 red (nclt 8, inside our run range). Against the
-  FAST-LIO2 paper every RMSE is lower, 22-92 %: the paper's RMSE protocol is not
-  the standard full-trajectory alignment (see findings above); the same gap
-  appears in the independent study, so it is a property of the paper's table, not
-  of this container.
-- **lili 7** is the one genuine shortfall (see diagnostics).
+- **End-to-end sequences that return to their start** (garden, campus, Schloss-2):
+  garden PASS, campus +7.5 %, Schloss-2 +2.0 %. These match the paper directly.
+- **lili 6 / lili 8** do not return to their start and LiLi-OM's satellite-registered
+  end points are unpublished, so they cannot be scored like-for-like; the GNSS proxy
+  is limited by metre-level GNSS.
+- **ATE RMSE sequences**: the paper's Table IV values are 2-8x above every standard
+  re-run, including the paper's own code (Review, point 2). Against the like-for-like
+  re-runs, 6 of 8 shared sequences are green, utbm 10 amber, and nclt 8 lower than
+  the reference (bimodal runs). The two independent groups disagree with each other on
+  nclt 5 (1.40 vs 0.82 m); ours (1.47) agrees with the former.
+- No sequence remains a genuine shortfall against a like-for-like reference.
 
 ## Functional validation (not a paper comparison)
 

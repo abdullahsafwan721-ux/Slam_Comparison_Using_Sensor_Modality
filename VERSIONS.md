@@ -4,6 +4,7 @@
 | ---------------- | ------------------------------------------ | ----------------------------------------------------------------------------------- |
 | ORB_SLAM3        | `0df83dde1c85c7ab91a0d47de7a29685d046f637` | tag v1.0-release — matches the published paper                                      |
 | FAST_LIO         | `7cc4175de6f8ba2edf34bab02a42195b141027e9` | HEAD of master; repo has no tags                                                    |
+| FAST_LIO (diag.) | `f159d57da8fa48920cefae1e9b289cb1785e4faa` | evtol/fastlio2:paper2021 only (compose service fastlio2_paper2021): the code of the paper's arXiv v1 (19 Jul 2021), ikd-Tree submodule 3d115a4; diagnostic, not the benchmark build |
 | FAST-LIVO2       | `0d2c0346107b75b59934975adec9a6eeeb913c64` | HEAD of main, no tags; verified with git ls-remote 2026-10-07. GPLv2 (commercial use: contact authors) |
 | livox_ros_driver | `fb5669b90af07915c1870d106cc1e4e1ef1f5a15` | tag v2.6.0 (HEAD `3d240d56` is ahead; the tag is the pin)                           |
 | Livox-SDK        | `14c533dd7175bd90a6b568c0aa1733f35d36cb89` | tag v2.3.1, latest release; verified with git ls-remote 2026-10-06 (was unpinned)    |

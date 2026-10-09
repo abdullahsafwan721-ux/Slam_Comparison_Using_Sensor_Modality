@@ -1,16 +1,22 @@
-# LiLi-OM dataset, KA-Urban (lili 6/7/8). Livox Horizon, livox_ros_driver/CustomMsg.
-# IMU: the paper's Table II lists lili's IMU as "6-axis, 200 Hz" -- the Horizon's
-# built-in IMU (/livox/imu), not the 9-axis Xsens (/imu/data). Extrinsic is the
-# Horizon factory value from upstream FAST_LIO config/horizon.yaml.
+# LiLi-OM dataset, KA-Urban (lili 6/7/8), with the IMU the FAST-LIO2 paper names:
+# Sec. VI-A "sampled at 200 Hz by a 6-axis Xsens MTi-670 IMU" -> /imu/data
+# (lili_horizon_imu.yaml: the Horizon's built-in IMU /livox/imu, used until 2026-10-09).
+# Extrinsic from LiLi-OM's own config_ka_urban_schloss_*.yaml: ql2b = (w0,x0,y0,z1),
+# tl2b = (-0.0265, 0.0202, 0.05309), which LiLi-OM applies as p_lidar = q*p_imu + t
+# (BackendFusion.cpp: Q_wl = Q_wb*q_lb^-1). FAST-LIO wants LiDAR-in-IMU:
+# R = q^-1 = Rz(180) = diag(-1,-1,1), T = -R*t = (-0.0265, 0.0202, -0.05309).
+# Checked on the data 2026-10-09: gyro fit Xsens<-Horizon = Rz(180) within 1-2 deg on all
+# three bags; Xsens stamps lag the LiDAR-synced Horizon IMU by 10-50 ms (not compensated,
+# the paper-era code had no time-offset parameter).
 common:
     lid_topic: "/livox/lidar"
-    imu_topic: "/livox/imu"
+    imu_topic: "/imu/data"
     time_sync_en: false
     time_offset_lidar_to_imu: 0.0
 preprocess:
     lidar_type: 1                 # Livox CustomMsg
     scan_line: 6                  # Horizon
-    blind: 4
+    blind: 0.01                   # see note below
 mapping:
     acc_cov: 0.1
     gyr_cov: 0.1
@@ -18,11 +24,11 @@ mapping:
     b_gyr_cov: 0.0001
     fov_degree: 100
     det_range: 260.0
-    extrinsic_est_en: true        # as upstream's horizon.yaml ships it
-    extrinsic_T: [ 0.05512, 0.02226, -0.0297 ]
-    extrinsic_R: [ 1, 0, 0,
-                   0, 1, 0,
-                   0, 0, 1]
+    extrinsic_est_en: true        # paper-era code always estimated it online
+    extrinsic_T: [ -0.0265, 0.0202, -0.05309 ]
+    extrinsic_R: [ -1, 0, 0,
+                    0, -1, 0,
+                    0, 0, 1]
 publish:
     path_en: true
     scan_publish_en: false
@@ -31,3 +37,9 @@ publish:
 pcd_save:
     pcd_save_en: false
     interval: -1
+# blind: upstream horizon.yaml says 4, but its meaning changed after the paper.
+# Paper-era code (f159d57, July 2021) tests  dx>0 || dy>0 || dz>0 && x*x+y*y > blind ;
+# && binds tighter, so near points were practically never removed. Since fa4cf34
+# (Apr 2023) blind is a true 3-D minimum range: 4 now drops every point within 4 m.
+# 0.01 (the code's own default) reproduces the paper's behaviour. (Measured effect on
+# lili 7 with the Horizon IMU: 11.49 -> 11.61 m, i.e. none; kept for fidelity.)

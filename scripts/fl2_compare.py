@@ -45,6 +45,15 @@ PAPER = {  # id: (metric, value_m, real sequence)   value None = '< 0.1 m'
 INDEP = {"nclt 5": 1.40, "nclt 6": 2.46, "nclt 7": 2.37, "nclt 8": 4.37, "nclt 9": 0.90,
          "utbm 8": 15.13, "utbm 9": 21.21, "utbm 10": 10.81, "ulhk 4": 1.20}
 
+# Second independent re-run: FastLIO2 column of Table II in Bai et al., "Faster-LIO",
+# IEEE RA-L 2022 (co-authored by FAST-LIO2's senior author F. Zhang), APE in m. Their
+# "Dist (km)" column repeats the FAST-LIO2 paper's Table VIII distances, which maps
+# their ids: nclt_2 (0.26 km) = nclt 9, nclt_4 (1.86 km) = nclt 5, ulhk_1 (0.60 km) = ulhk 4.
+# nclt 9 = 0.91 m against 5.56 m in the FAST-LIO2 paper: even the authors' group gets
+# ~1 m with a standard APE. The FAST-LIO2 paper's July-2021 code itself gives 0.92 m on
+# nclt 9 in this container (output/diagnostics/fastlio2/paper2021_code/).
+FASTER = {"nclt 9": 0.91, "nclt 5": 0.82, "ulhk 4": 1.21}
+
 # A KA-Urban sequence counts as returning to its start when the bag's own GNSS puts
 # the end within LOOP_TOL of the start (consumer GNSS is good to a few metres).
 LOOP_TOL = 5.0
@@ -61,8 +70,8 @@ for r in csv.DictReader(open(sys.argv[1])):
     if r["value_m"] in ("", "NA"): continue
     runs.setdefault((r["sequence"], r["metric"]), []).append(float(r["value_m"]))
 
-print("| Paper id | Sequence | Metric | Paper (1000 m) | Ours (median) | Runs | Spread | Deviation | Band | Independent [2307.07792] | Dev. vs independent |")
-print("|---|---|---|---|---|---|---|---|---|---|---|")
+print("| Paper id | Sequence | Metric | Paper (1000 m) | Ours (median) | Runs | Spread | Deviation | Band | Independent [2307.07792] | Dev. vs independent | Faster-LIO [RA-L 2022] | Dev. vs Faster-LIO |")
+print("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 for (seq, metric), v in sorted(runs.items(), key=lambda kv: list(PAPER).index(paper_id(kv[0][0])) if paper_id(kv[0][0]) in PAPER else 99):
     pid = paper_id(seq); med = statistics.median(v); spread = max(v) - min(v)
     if pid not in PAPER:
@@ -90,4 +99,6 @@ for (seq, metric), v in sorted(runs.items(), key=lambda kv: list(PAPER).index(pa
     dev = (med - pv) / pv
     ind = INDEP.get(pid)
     icol = ("%.2f | %+.1f %% (%s)" % (ind, 100*(med-ind)/ind, band((med-ind)/ind))) if ind else "- | -"
-    print("| %s | %s | %s | %.2f | %.3f | %d | %.3f | %+.1f %% | %s | %s |" % (pid, seq, metric, pv, med, len(v), spread, 100*dev, band(dev), icol))
+    fl = FASTER.get(pid)
+    fcol = ("%.2f | %+.1f %% (%s)" % (fl, 100*(med-fl)/fl, band((med-fl)/fl))) if fl else "- | -"
+    print("| %s | %s | %s | %.2f | %.3f | %d | %.3f | %+.1f %% | %s | %s | %s |" % (pid, seq, metric, pv, med, len(v), spread, 100*dev, band(dev), icol, fcol))

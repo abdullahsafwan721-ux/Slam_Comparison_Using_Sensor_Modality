@@ -19,8 +19,11 @@ mapping:
     b_gyr_cov: 0.0001
     fov_degree: 180
     det_range: 100.0
-    extrinsic_est_en: true        # UTBM publishes no IMU-LiDAR extrinsic
-    extrinsic_T: [ 0.0, 0.0, 0.0 ]
+    extrinsic_est_en: true        # the paper-era code always estimated it online (no switch before Aug 2021)
+    # Left HDL-32E in the IMU frame. UTBM's own launch/utbm_dataset_play.launch:
+    #   velodyne_left = (-0.5, 1.4, 1.5, rpy 0 0 0) and base_imu = identity, both from base_link.
+    # SR-LIO / Semi-Elastic LIO (config/utbm.yaml) use the same value. Was [0,0,0] until 2026-10-09.
+    extrinsic_T: [ -0.5, 1.4, 1.5 ]
     extrinsic_R: [ 1, 0, 0,
                    0, 1, 0,
                    0, 0, 1]

@@ -76,8 +76,11 @@ level1() {
     near "fastlio2 nclt9_r1 ATE (m)" "$(dc eval bash -c 'evo_ape tum /output/fastlio2/gt_nclt9.tum /output/fastlio2/nclt9_r1.tum --align --t_max_diff 0.02 2>/dev/null | awk "/^ *rmse/{print \$2}"')" 0.954287 0.0001
   else skip "fastlio2 nclt9_r1 (no stored run)"; fi
   if [ -s output/fastlio2/utbm8_r1.tum ] && [ -s output/fastlio2/gt_utbm8.tum ]; then
-    near "fastlio2 utbm8_r1 ATE (m)" "$(dc eval bash -c 'evo_ape tum /output/fastlio2/gt_utbm8.tum /output/fastlio2/utbm8_r1.tum --align --t_max_diff 0.02 2>/dev/null | awk "/^ *rmse/{print \$2}"')" 12.795859 0.001
+    near "fastlio2 utbm8_r1 ATE (m)" "$(dc eval bash -c 'evo_ape tum /output/fastlio2/gt_utbm8.tum /output/fastlio2/utbm8_r1.tum --align --t_max_diff 0.02 2>/dev/null | awk "/^ *rmse/{print \$2}"')" 14.398519 0.001
   else skip "fastlio2 utbm8_r1 (no stored run)"; fi
+  if [ -s output/fastlio2/lili7_schloss2_r1.tum ]; then   # guards the Xsens-IMU fix (was 11.6 m with the Horizon IMU)
+    near "fastlio2 lili7_schloss2_r1 end-to-end (m; paper 1.63)" "$(python3 scripts/fl2_drift.py output/fastlio2/lili7_schloss2_r1.tum auto | awk '/end-to-end/{print $3}')" 1.668 0.0005
+  else skip "fastlio2 lili7_r1 (no stored run)"; fi
   if [ -s output/fastlio2/liosam2_garden_r1.tum ]; then
     near "fastlio2 liosam2_garden_r1 end-to-end (m)" "$(python3 scripts/fl2_drift.py output/fastlio2/liosam2_garden_r1.tum | awk '/end-to-end/{print $3}')" 0.027 0.0005
   else skip "fastlio2 garden_r1 (no stored run)"; fi

@@ -39,6 +39,18 @@ services:
     image: evtol/fastlio2:v1
     shm_size: 4gb
 
+  # Same Dockerfile, FAST_LIO at the July-2021 commit the paper was written with
+  # (arXiv v1, 14 Jul 2021). Used only to check paper-vs-HEAD code differences.
+  fastlio2_paper2021:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/fastlio2.Dockerfile
+      args:
+        FASTLIO2_COMMIT: f159d57da8fa48920cefae1e9b289cb1785e4faa
+    image: evtol/fastlio2:paper2021
+    shm_size: 4gb
+
   fastlivo2:
     <<: *common
     build:

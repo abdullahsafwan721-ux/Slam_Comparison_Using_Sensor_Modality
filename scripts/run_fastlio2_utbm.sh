@@ -2,6 +2,9 @@
 # UTBM: velodyne_pointcloud must run alongside FAST-LIO2, because the bag holds
 # raw packets rather than point clouds.
 #    run_fastlio2_utbm.sh <in.bag> <seq-name>
+# The bag stamps each scan with its LAST packet (point times come out negative);
+# utbm_restamp.py re-stamps it with the first one so FAST-LIO's scan start is right
+# (UTBM_RESTAMP=0 restores the pre-2026-10-09 behaviour).
 set -eo pipefail
 BAG=$1; SEQ=$2; RUNS=${RUNS:-1}
 source /opt/ros/noetic/setup.bash; source /ws/devel/setup.bash
@@ -26,8 +29,13 @@ for r in $(seq "$R0" $((R0 + RUNS - 1))); do
   until rostopic list >/dev/null 2>&1; do sleep 0.5; done
   rosparam set /use_sim_time true
   roslaunch /config/fastlio2/utbm_convert.launch > "${OUT%.bag}.convert.log" 2>&1 & CONV=$!
+  REMAP=(); RS=""
+  if [ "${UTBM_RESTAMP:-1}" = 1 ]; then
+    python3 /scripts/utbm_restamp.py >> "${OUT%.bag}.convert.log" 2>&1 & RS=$!
+    REMAP=(/hdl32e_left/velodyne_packets:=/hdl32e_left/velodyne_packets_orig)
+  fi
   sleep 5
-  rosparam load /config/fastlio2/utbm.yaml
+  rosparam load "${UTBM_CFG:-/config/fastlio2/utbm.yaml}"   # UTBM_CFG: diagnostic variants only
   rosparam set /feature_extract_enable false
   rosparam set /point_filter_num 4
   rosparam set /max_iteration 3
@@ -40,11 +48,11 @@ for r in $(seq "$R0" $((R0 + RUNS - 1))); do
   sleep 5
   rosbag record -O "$OUT" /Odometry __name:=rec >/dev/null 2>&1 & REC=$!
   sleep 1
-  rosbag play --clock -d 1 "$BAG"
+  rosbag play --clock -d 1 "$BAG" "${REMAP[@]}"
   sleep 3
   rosnode kill /rec >/dev/null 2>&1 || true; wait $REC 2>/dev/null || true
   kill -0 $ALGO 2>/dev/null || echo "!! fastlio_mapping had already exited -- see ${OUT%.bag}.algo.log"
-  stop $ALGO $CONV
+  stop $ALGO $CONV $RS
   stop $CORE
   n=$(rosbag info -y -k messages "$OUT" 2>/dev/null || echo 0)
   echo "wrote $OUT ($n odometry messages)"

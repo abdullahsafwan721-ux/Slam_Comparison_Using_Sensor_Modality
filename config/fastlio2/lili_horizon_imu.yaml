@@ -1,0 +1,41 @@
+# DIAGNOSTIC ONLY -- superseded by lili.yaml on 2026-10-09.
+# KA-Urban with the Horizon's built-in IMU (/livox/imu). This was the benchmark config
+# until 2026-10-09, based on a misreading of the paper's Table II ("6-axis, 200 Hz").
+# The paper's text (Sec. VI-A) names the Xsens MTi-670 (/imu/data), see lili.yaml.
+# With this file lili 7 ends 11.5-11.6 m off (paper 1.63 m); with lili.yaml 1.66 m.
+# Extrinsic is the Horizon factory value from upstream FAST_LIO config/horizon.yaml.
+common:
+    lid_topic: "/livox/lidar"
+    imu_topic: "/livox/imu"
+    time_sync_en: false
+    time_offset_lidar_to_imu: 0.0
+preprocess:
+    lidar_type: 1                 # Livox CustomMsg
+    scan_line: 6                  # Horizon
+    blind: 0.01                   # see note below (was 4 until 2026-10-09)
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree: 100
+    det_range: 260.0
+    extrinsic_est_en: true        # as upstream's horizon.yaml ships it
+    extrinsic_T: [ 0.05512, 0.02226, -0.0297 ]
+    extrinsic_R: [ 1, 0, 0,
+                   0, 1, 0,
+                   0, 0, 1]
+publish:
+    path_en: true
+    scan_publish_en: false
+    dense_publish_en: false
+    scan_bodyframe_pub_en: false
+pcd_save:
+    pcd_save_en: false
+    interval: -1
+# blind: upstream horizon.yaml says 4, but its meaning changed after the paper.
+# Paper-era code (f159d57, July 2021) tests  dx>0 || dy>0 || dz>0 && x*x+y*y > blind ;
+# && binds tighter, so near points were practically never removed. Since fa4cf34
+# (Apr 2023) blind is a true 3-D minimum range: 4 now drops every point within 4 m,
+# a large share of a handheld Horizon's returns. 0.01 (the code's own default)
+# reproduces the paper's behaviour and only drops (0,0,0) no-return points.
