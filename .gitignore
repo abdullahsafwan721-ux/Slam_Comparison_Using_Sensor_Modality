@@ -2,3 +2,4 @@ data/
 output/
 *.bag
 *.zip
+__pycache__/

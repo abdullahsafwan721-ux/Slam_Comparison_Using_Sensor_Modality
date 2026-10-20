@@ -84,7 +84,7 @@ for ds, pid, s, metric, p in FL2:
         else:
             result = "lower than paper"; note = "no independent re-run available"
         if s == "nclt9":
-            note = "the paper's own July-2021 code gives 0.92 m here; Faster-LIO (FAST-LIO2 authors' group) reports 0.91 m: paper value not reproducible"
+            note = "the paper's own July-2021 code gives 0.92 m here; a second independent re-run (Faster-LIO, RA-L 2022) reports 0.91 m: paper value not reproducible"
         elif s == "nclt5":
             note = "Faster-LIO reports 0.82 m for FAST-LIO2 here; the two independent re-runs disagree"
         if not note: note = "paper RMSEs use an unstated alignment; independent re-run (arXiv 2307.07792) is the like-for-like reference"
@@ -217,7 +217,7 @@ S += [PageBreak(), P("2. Comparison tables", h1), P("2.1 ORB-SLAM3 — EuRoC MAV
         [27 * mm, 25 * mm, 13 * mm, 20 * mm, 14 * mm, 19 * mm, 21 * mm, 35 * mm], colour_col=7),
       P("Paper: Xu et al., IEEE T-RO 2022, Tables IV/V (1000 m map). Independent re-run: Yuan et al., arXiv 2307.07792, Table II. "
         "Our RMSEs are 20–92 % below the paper's on every sequence. Two independent groups find the same, and so does the paper's own "
-        "July-2021 code run in this container (nclt 9: 0.92 m; Faster-LIO, from the FAST-LIO2 authors' group: 0.91 m; paper: 5.56 m). "
+        "July-2021 code run in this container (nclt 9: paper 5.56 m; Yuan et al. 0.90 m; Faster-LIO, Bai et al. RA-L 2022: 0.91 m; July-2021 code 0.92 m). "
         "The paper aligned its trajectories in an unstated way, so the like-for-like independent re-runs are the targets; against them the container is green.", small),
       PageBreak(), P("2.3 FAST-LIVO2 (m)", h2),
       T([["Sequence", "Metric", "Authors' repo", "Paper", "Ours, whole bag", "Ours, authors' start", "Dev. (authors' start)", "Result"]] +

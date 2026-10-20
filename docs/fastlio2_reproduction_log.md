@@ -122,8 +122,13 @@ values are the correct, standard ATE:
 | FAST-LIO2 paper, Table IV | 5.56 |
 | **this container, FAST_LIO HEAD** | **0.955** |
 | this container, the paper's own July-2021 code (`evtol/fastlio2:paper2021`, f159d57) | 0.924 (5 runs, 0.904-0.945) |
-| Faster-LIO paper (Bai et al., RA-L 2022; co-author F. Zhang = FAST-LIO2's PI), FastLIO2 column | 0.91 |
+| Faster-LIO paper (Bai et al., RA-L 2022; Tsinghua University / Idriver+), FastLIO2 column | 0.91 |
 | Semi-Elastic LIO (Yuan et al., arXiv 2307.07792), FAST-LIO2 column | 0.90 |
+
+Correction (2026-10-12): this log first named Faster-LIO's co-author F. Zhang as FAST-LIO2's
+PI. The co-author is Fang Zhang (Idriver+), while FAST-LIO2's PI is Fu Zhang (HKU), so
+Faster-LIO is a second independent group, not the authors' own (checked against the
+paper's BibTeX in gaoxiang12/faster-lio and OpenAlex, DOI 10.1109/LRA.2022.3152830).
 
 Faster-LIO's "Dist" column repeats FAST-LIO2's Table VIII distances (0.26 km, 1.86 km,
 0.60 km), which identifies its nclt_2 / nclt_4 / ulhk_1 as FAST-LIO2's nclt 9 / nclt 5 /

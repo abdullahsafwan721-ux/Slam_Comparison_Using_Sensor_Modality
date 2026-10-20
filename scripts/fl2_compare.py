@@ -40,16 +40,17 @@ PAPER = {  # id: (metric, value_m, real sequence)   value None = '< 0.1 m'
 # "Semi-Elastic LiDAR-Inertial Odometry", arXiv 2307.07792, Table II, mapped to the
 # FAST-LIO2 paper's ids via the session dates in their Table I. On every shared
 # sequence it is 2-8x below the FAST-LIO2 paper's Table IV, i.e. the paper's own RMSE
-# protocol (alignment) is not the standard full-trajectory Umeyama. Shown as a second
-# reference; the paper column remains the primary target.
+# protocol (alignment) is not the standard full-trajectory Umeyama. For these RMSE
+# sequences the re-runs are the like-for-like targets; the paper column is kept for
+# transparency (docs/fastlio2_reproduction_log.md, Review point 2).
 INDEP = {"nclt 5": 1.40, "nclt 6": 2.46, "nclt 7": 2.37, "nclt 8": 4.37, "nclt 9": 0.90,
          "utbm 8": 15.13, "utbm 9": 21.21, "utbm 10": 10.81, "ulhk 4": 1.20}
 
 # Second independent re-run: FastLIO2 column of Table II in Bai et al., "Faster-LIO",
-# IEEE RA-L 2022 (co-authored by FAST-LIO2's senior author F. Zhang), APE in m. Their
+# IEEE RA-L 2022 (Tsinghua University / Idriver+; not the FAST-LIO2 group), APE in m. Their
 # "Dist (km)" column repeats the FAST-LIO2 paper's Table VIII distances, which maps
 # their ids: nclt_2 (0.26 km) = nclt 9, nclt_4 (1.86 km) = nclt 5, ulhk_1 (0.60 km) = ulhk 4.
-# nclt 9 = 0.91 m against 5.56 m in the FAST-LIO2 paper: even the authors' group gets
+# nclt 9 = 0.91 m against 5.56 m in the FAST-LIO2 paper: a second group also gets
 # ~1 m with a standard APE. The FAST-LIO2 paper's July-2021 code itself gives 0.92 m on
 # nclt 9 in this container (output/diagnostics/fastlio2/paper2021_code/).
 FASTER = {"nclt 9": 0.91, "nclt 5": 0.82, "ulhk 4": 1.21}
