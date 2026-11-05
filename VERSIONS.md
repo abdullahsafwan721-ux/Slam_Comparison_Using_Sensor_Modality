@@ -14,10 +14,19 @@
 | OpenCV           | `4.4.0` (tag)                              | orbslam3.Dockerfile; Ubuntu 20.04 ships 4.2, this ORB-SLAM3 release needs >= 4.4     |
 | Pangolin         | `v0.6` (tag)                               | orbslam3.Dockerfile                                                                 |
 | evo              | `1.31.1` (PyPI)                            | eval.Dockerfile; last release supporting Python 3.8 (1.32+ needs >= 3.10)           |
+| PX4-Autopilot    | `1555f2bd2229544c43966ab5f94879c41d8e1e01` | evtol/sim:v1 (Stage 2+). Tag v1.14.4 = annotated tag object `4eb5668b`; the build fails if the tag stops pointing at this commit. Submodule sitl_gazebo-classic `2e3ed9bf` (as the project guide lists) |
+| Mid360_simulation_plugin | `aae8ee3a0f16e2f21c480da9b858dd702a2cd13a` | github.com/fratopa, HEAD (2024-01-29); four patches in sim.Dockerfile, each guarded by a grep. Verified 2026-11-05 |
+| Livox-SDK, livox_ros_driver (sim) | same pins as above | sim.Dockerfile (the project guide cloned Livox-SDK HEAD `9306596`; pinned to v2.3.1 like FAST-LIO2) |
+| Gazebo           | `11.15.1-1~focal` (apt)                    | evtol/sim:v1, from packages.ros.org; sdformat 9.10.1, gazebo_ros 2.9.3, mavros 1.20.1 |
 
 Apt packages (ROS Noetic, Ubuntu 20.04) are not version-pinned; they come from the
 distribution's frozen Noetic repository. FAST-LIO2 image extras: velodyne_pointcloud,
 velodyne_msgs, nmea_navsat_driver (needed for the UTBM benchmark bags).
+
+Sim image (evtol/sim:v1, built 2026-11-05, image id `sha256:a736b36ea7db...`): PX4's
+`Tools/setup/ubuntu.sh` also pip-installs PX4's Python tools into `/root/.local` (unpinned,
+PyPI as of the build date: jinja2 3.1.6, pyros-genmsg 0.5.8, pandas 2.0.3, ...). pip left the
+system numpy 1.17.4 in place, so `import pandas` fails there; nothing in this project uses it.
 
 FAST-LIVO2 build flags: upstream vikit and FAST-LIVO2 hard-code `-march=native`. The image
 replaces it with one explicit target for Sophus, vikit and FAST-LIVO2: `-march=skylake`

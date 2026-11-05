@@ -8,9 +8,11 @@ Layout organised on 2026-10-08 (FAST-LIO2 lili/utbm runs replaced 2026-10-09, ol
 |---|---|---|
 | `orbslam3/trajectories/` | ORB-SLAM3 EuRoC, 11 seq x 5 runs: `kf_orb_<SEQ>_r<N>.txt` (keyframes, ns stamps), `f_orb_*` (all frames) | `scripts/run_orbslam3_euroc.sh` (orbslam3 container) |
 | `orbslam3/evaluation/` | `*_eval.txt` (stamps in s), `*_ape.zip` (evo), `summary.csv` | `scripts/eval_orbslam3.sh` (eval container) |
+| `orbslam3/groundtruth/` | EuRoC ground truth, 11 seq: `<SEQ>_state_groundtruth_estimate0.csv`, byte-identical copies of `mav0/state_groundtruth_estimate0/data.csv` (sha256 checked), kept so the ORB-SLAM3 runs stay scorable after `data/` was moved to the trash on 2026-10-20 | copied by hand |
 | `fastlio2/` | FAST-LIO2, 16 paper sequences x 5 runs (lili and utbm re-run 2026-10-09): `<seq>_r<N>.bag` (/Odometry), `.tum`, `.algo.log`, `.params.yaml`; ground truth `gt_<seq>.tum`, GNSS refs `gnssref_<seq>.tum`, UTBM `<seq>_fix.bag`; `benchmark.log` | `scripts/fl2_benchmark.sh` -> `run_fastlio2.sh` / `run_fastlio2_utbm.sh` |
 | `fastlivo2/` | FAST-LIVO2 standard protocol (whole bag): NTU-VIRAL 9 seq + private 6 seq x 5 runs: `<seq>_r<N>.txt` (TUM, IMU frame), `_prism.tum`, `.bag`, `.algo.log`, `.params.yaml`; `gt_<seq>.tum`; `benchmark.log` | `scripts/livo2_benchmark.sh` -> `run_fastlivo2.sh` |
 | `fastlivo2_matched/` | FAST-LIVO2 NTU-VIRAL "matched start" protocol (replay from the authors' own first pose) | `scripts/livo2_ntu_matched.sh` |
+| `stage2/` | Stage 2 simulated rig (2026-11-05): `scripted_room.bag` (120 s, room world, GPU-rendered: /livox/imu 200 Hz, /livox/lidar Mid-360 CustomMsg 10 Hz, /stereo/{left,right}/image_raw 20 Hz, /ground_truth/odom 200 Hz), `.sim.log` (Gazebo), `.gate.txt` (verify_sim_bag.py), `scripted_room_diag/` + `_diag.txt` (diagnostics report; camera, LiDAR, LiDAR-on-camera PNGs), `scripted_room_camcheck/` + `.txt` (camera extrinsic/intrinsic/time check, world-edge PNG) | `scripts/stage2/record_scripted.sh`, `verify_sim_bag.py`, `sim_bag_diagnostics.py`, `camera_check.py` (sim container) |
 | `results/fastlio2_final/` | final FAST-LIO2 evaluation: `summary.csv`, `comparison.md`, per-run `*_ape.zip/.txt` | `scripts/eval_fastlio2.sh` |
 | `results/fastlivo2_standard_final/` | final FAST-LIVO2 evaluation, standard protocol | `scripts/eval_fastlivo2.sh` |
 | `results/fastlivo2_matched_final/` | final FAST-LIVO2 evaluation, matched-start protocol | `IN=/output/fastlivo2_matched eval_fastlivo2.sh` |
@@ -31,6 +33,10 @@ Layout organised on 2026-10-08 (FAST-LIO2 lili/utbm runs replaced 2026-10-09, ol
 | `diagnostics/fastlivo2/INVALID_generic_build_abi_mismatch/` | invalid: only FAST-LIVO2 rebuilt without -march (Eigen ABI mismatch with vikit) -- do not use | diagnostic image |
 | `diagnostics/fastlivo2/eee02_start_offset_0.3s/` | eee_02 replayed from 0.3 s (start-offset test) | `run_fastlivo2.sh ... -s 0.3` |
 | `diagnostics/fastlivo2/private_paper_default_config/` | private dataset with the paper's Sec. IX-A defaults | `avia_private_g*_paperdefault.yaml` |
+| `diagnostics/stage2/smoke_20s_world_gravity_ignored/` | first 20 s Stage 2 run, before the gen_world.py gravity fix (world gravity ignored by Gazebo: 9.8000 m/s^2 at rest) | `record_scripted.sh` |
+| `diagnostics/stage2/llvmpipe_room_120s/` | 120 s room bag + gate + diagnostics recorded with Mesa llvmpipe (GPU down before the reboot); passed the gate; superseded | `record_scripted.sh` (CPU override) |
+| `diagnostics/stage2/gpu_room_120s_unthrottled/` | 120 s GPU room bag with the guide's camera `updateRate 0.0`: 2471 frames, bursts with repeated stamps; superseded by the throttle fix | `record_scripted.sh` |
+| `diagnostics/stage2/lockstep_test/` | 40 s bags with/without `gzserver --lockstep`: exact camera frames but Mid-360 halved to 5 Hz; lockstep rejected | scratch launch file |
 
-Reports: `docs/fastlio2_reproduction_log.md`, `docs/fastlivo2_reproduction_log.md`,
+Reports: `docs/fastlio2_reproduction_log.md`, `docs/fastlivo2_reproduction_log.md`, `docs/stage2_log.md`,
 `docs/FAST-LIO2_FAST-LIVO2_Test_Commands.pdf` (all commands to build, test and evaluate).

@@ -65,3 +65,23 @@ services:
       context: .
       dockerfile: docker/eval.Dockerfile
     image: evtol/eval:v1
+
+  # ---- Stages 2-4: simulation (own network: its roscore is private).
+  # Gazebo 11 + PX4 v1.14.4 SITL + MAVROS + the patched Mid-360 plugin.
+  # Worlds, models and launch files are mounted from ./sim/evtol_sim at /sim
+  # (generated on the host by scripts/common/gen_configs.py and gen_world.py),
+  # so editing config/rig.yaml never needs an image rebuild.
+  sim:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/sim.Dockerfile
+    image: evtol/sim:v1
+    shm_size: 4gb
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./data:/data:ro
+      - ./config:/config:ro
+      - ./scripts:/scripts:ro
+      - ./output:/output
+      - ./sim/evtol_sim:/sim:ro

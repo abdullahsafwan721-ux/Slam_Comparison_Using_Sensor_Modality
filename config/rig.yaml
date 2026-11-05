@@ -1,0 +1,69 @@
+# =============================================================================
+# THE SENSOR RIG — single source of truth.
+#
+# Every sensor pose below is expressed in the RIG frame, which is defined to BE
+# the IMU frame (x forward, y left, z up, as seen by the IMU itself).
+#
+# After ANY edit to this file, run:   python3 scripts/common/gen_configs.py
+# That regenerates the Gazebo models and every algorithm config from these
+# numbers. Never hand-edit anything under config/generated/ or sim/.../models/:
+# the next generation overwrites it, and a hand-edit is exactly how the same
+# extrinsic ends up with two different values in two places.
+# =============================================================================
+
+imu:
+  topic: /livox/imu
+  rate_hz: 200            # physics runs at 1000 Hz, so this is exactly every 5th step
+
+lidar:                    # Livox Mid-360 (fratopa/Mid360_simulation_plugin, patched)
+  csv: mid360-real-centr.csv
+  topic: /livox/lidar
+  frame: livox_frame
+  rate_hz: 10
+  samples: 20000          # 20000 points x 10 Hz = 200k pts/s, the real Mid-360 rate
+  range_min: 0.1
+  range_max: 40.0         # Mid-360 spec range at 10% reflectivity
+  # IMU -> LiDAR offset inside a real Mid-360 (from FAST_LIO config/mid360.yaml).
+  xyz: [-0.011, -0.02329, 0.04412]
+  rpy: [0.0, 0.0, 0.0]
+
+camera:                   # stereo pair; the LEFT camera also feeds FAST-LIVO2
+  ns: /stereo             # -> /stereo/left/image_raw  and  /stereo/right/image_raw
+  rate_hz: 20
+  width: 752
+  height: 480
+  hfov_rad: 1.3736        # -> fx = fy ~ 458.6 px, deliberately EuRoC-like
+  baseline_m: 0.11        # EuRoC's baseline
+  noise_stddev: 0.007     # image noise, fraction of full scale
+  # Left camera BODY pose in the rig (IMU) frame, Gazebo convention (x = viewing axis).
+  # pitch -35 deg in the IMU frame becomes 35 deg DOWN once the rig is mounted
+  # upside-down (see mount.rpy). roll = pi cancels that inversion for the image
+  # itself, so pictures come out upright relative to the vehicle.
+  xyz: [0.06, 0.0, 0.04]
+  rpy: [3.14159265, -0.6109, 0.0]
+
+mount:
+  # Pose of the rig (IMU) frame on the vehicle base_link.
+  # roll = pi: the rig hangs upside-down, so the Mid-360's -7..+52 deg vertical
+  # FOV becomes -52..+7 deg and actually sees the ground from altitude.
+  xyz: [0.12, 0.0, -0.06]
+  rpy: [3.14159265, 0.0, 0.0]
+  mass_kg: 0.35
+
+ground_truth:
+  topic: /ground_truth/odom   # pose of the IMU frame in the world frame
+  rate_hz: 200
+
+scripted:                 # Stage 2 trajectory (no vehicle, no flight controller)
+  start_xyz: [0.0, 0.0, 1.5]
+  hold_s: 8.0             # stationary at the start: FAST-LIO initialises gravity here
+  ramp_s: 4.0             # smooth amplitude ramp, avoids an acceleration step
+  period_s: 30.0
+  amp_xyz: [3.0, 2.0, 0.5]
+  amp_rpy: [0.15, 0.15, 0.6]   # rad; excites the IMU so ORB-SLAM3 can initialise
+
+imu_noise_baseline:       # continuous-time densities (EuRoC's ADIS16448 figures)
+  gyro_noise_density: 1.7e-4     # rad/s/sqrt(Hz)
+  gyro_random_walk: 1.9393e-5    # rad/s^2/sqrt(Hz)
+  accel_noise_density: 2.0e-3    # m/s^2/sqrt(Hz)
+  accel_random_walk: 3.0e-3      # m/s^3/sqrt(Hz)
