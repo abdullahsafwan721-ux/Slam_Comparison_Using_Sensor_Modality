@@ -84,12 +84,16 @@ def main():
     t, p = gt[:, 0], gt[:, 1:4]
     dt = np.gradient(t)
     acc = np.gradient(np.gradient(p, axis=0) / dt[:, None], axis=0) / dt[:, None]
+    # Predict f at every GT sample, then interpolate to each IMU stamp. (The guide
+    # paired each IMU sample with the NEXT GT sample within 3 ms; IMU and GT both run
+    # at 200 Hz with a start-up phase of 0-4 ms, so at a 3-4 ms phase few or no
+    # samples matched and a correct bag could fail -- see docs/stage2_log.md.)
+    f_gt = np.array([quat_to_R(*gt[k, 4:8]).T @ (acc[k] - np.array([0.0, 0.0, -G]))
+                     for k in range(len(t))])
     errs = []
     for row in imu[::10]:
-        k = np.searchsorted(t, row[0])
-        if 2 < k < len(t) - 2 and abs(t[k] - row[0]) < 0.003:
-            R = quat_to_R(*gt[k, 4:8])
-            f_pred = R.T @ (acc[k] - np.array([0.0, 0.0, -G]))
+        if t[2] < row[0] < t[-3]:                      # skip the finite-difference edges
+            f_pred = np.array([np.interp(row[0], t, f_gt[:, j]) for j in range(3)])
             errs.append(np.linalg.norm(f_pred - row[1:4]))
     rms = math.sqrt(np.mean(np.square(errs))) if errs else float("inf")
     check(rms < 0.15, "IMU accel matches GT kinematics", "RMS diff %.3f m/s^2 over %d samples" % (rms, len(errs)))

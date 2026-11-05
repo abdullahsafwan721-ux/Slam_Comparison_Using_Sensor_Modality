@@ -100,6 +100,7 @@ left camera's x axis.
 | 4 | gate command `docker compose run --rm sim python3 /scripts/stage2/verify_sim_bag.py ...` | `... sim bash -c "source /scripts/common/sim_env.sh && python3 ..."` | a command run directly does not read `.bashrc`, so ROS is not sourced: `ModuleNotFoundError: No module named 'rosbag'` (same class as FAST-LIO2 corrections 2-3) |
 | 5 | `gen_world.py`: `<gravity>` and `<magnetic_field>` inside `<physics>` ("match PX4's own worlds") | moved to `<world>` | SDF 1.6 defines both as `<world>` elements (sdformat9 `1.6/world.sdf`, gravity default `0 0 -9.8`). Inside `<physics>` Gazebo 11 logs `[Err] PhysicsEngine.cc:255 SetParam(gravity) std::any_cast error` and silently keeps 9.8: measured **9.8000** m/s^2 at rest. Fixed: **9.8066**. PX4's own `empty.world` has the same latent layout; the gate's 0.05 tolerance hid it |
 | 6 | `gen_configs.py`: multicamera plugin `<updateRate>0.0</updateRate>` (publish every render) | `<updateRate>` = 2 x camera rate (40), a publish throttle with a 25 ms minimum gap | on the GPU, Gazebo's rendering catch-up (`Sensor::Update`, `updateDelay`) emitted **2471 frames instead of 2400** in 120 s: bursts 0-3 ms after the previous frame, 13 of them with an identical stamp (different image noise). The gate passed (20.6 Hz is within 10 %), but ORB-SLAM3 and FAST-LIVO2 need strictly increasing image times. With the throttle: 2395 frames, intervals 48-58 ms, none repeated. Not seen under llvmpipe (too slow to catch up). Rejected alternative: `gzserver --lockstep` gives exact 50.000 ms frames but **halves the Mid-360 to 5 Hz**: in strict-rate mode `Sensor::NeedsUpdate` measures from `lastMeasurementTime`, which `RaySensor::UpdateImpl` sets *after* the plugin's 20 000-ray cast, while the ray thread sleeps exactly one period, so every first wake-up is a few ms short (Gazebo 11 `Sensor.cc`, `SensorManager.cc`; evidence in `output/diagnostics/stage2/lockstep_test/`) |
+| 7 | `verify_sim_bag.py`: each IMU sample paired with the *next* ground-truth sample if within 3 ms | ground-truth specific force computed at every GT sample and interpolated to each IMU stamp | IMU and ground truth both run at 200 Hz with a start-up phase of 0-4 ms (measured 0, 1, 2, 2, 3 ms in six bags). At 3 ms the float test `< 0.003` kept only 74 of 399 samples (room_plain, 20 s); at 4 ms none would match, RMS = inf, and a correct bag **fails**. After the fix every bag uses all samples (2399 / 399) and passes. Found by the five-world load test below |
 
 ## Results (2026-11-05, room world, 120 s)
 
@@ -150,12 +151,28 @@ right direction (about 16 px at about 3 m); LiDAR top view shows the 14 x 10 m r
 rings, clutter shadows, a 1.2 m blind radius below the rig (1.5 m / tan 52 deg = 1.17 m) and
 returns up to 2.33 m on the walls (+7 deg FOV edge: 1.5 + 7 tan 7 deg = 2.36 m).
 
+## All five worlds load (2026-11-05, GPU, 20 s each)
+
+`record_scripted.sh <world> 20`, then the gate: **room, room_plain, corridor, field, urban all
+13/13 PASS**, no `[Err]` in any Gazebo log, 9.8066 m/s^2 at rest in each
+(`output/diagnostics/stage2/worlds_load/`). Only room is the Stage 2 baseline; the other four are
+loaded here so that Stage 4 does not discover a broken world.
+
+## End-to-end with the Stage 1 images
+
+See `docs/stage1_2_audit.md`: the final bag through FAST-LIO2, FAST-LIVO2 and ORB-SLAM3 with the
+generated configs, scored by the Stage 1 eval image.
+
 ## Notes
 
 - **Smoothstep ramp.** `trajectory_driver.cpp` ramps the amplitude with a cubic smoothstep,
   whose second derivative jumps at the end of the ramp (t = 12 s): an acceleration step of
   about 0.8 m/s^2 along x. Harmless for the gate (IMU and ground truth see the same motion);
   "acceleration never jumps" in the guide's comment is not literally true.
+  It is the only place where IMU and ground truth disagree visibly: residual 0.2-0.5 m/s^2 for
+  one or two samples at t = 12.0 s (finite differences of position smear the step), median
+  0.0002-0.0003 m/s^2 elsewhere. Whether the gate's every-10th sample lands on it decides
+  between "RMS 0.001" and "RMS 0.02" -- both far inside the 0.15 limit.
 - **Dark boxes** in the images are shadowed faces of textured boxes (every box uses a
   textured material); the GPU and llvmpipe renders of the same moment are practically
   identical, so this is lighting, not a renderer fault.

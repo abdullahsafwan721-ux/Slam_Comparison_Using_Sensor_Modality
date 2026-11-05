@@ -37,6 +37,9 @@ Layout organised on 2026-10-08 (FAST-LIO2 lili/utbm runs replaced 2026-10-09, ol
 | `diagnostics/stage2/llvmpipe_room_120s/` | 120 s room bag + gate + diagnostics recorded with Mesa llvmpipe (GPU down before the reboot); passed the gate; superseded | `record_scripted.sh` (CPU override) |
 | `diagnostics/stage2/gpu_room_120s_unthrottled/` | 120 s GPU room bag with the guide's camera `updateRate 0.0`: 2471 frames, bursts with repeated stamps; superseded by the throttle fix | `record_scripted.sh` |
 | `diagnostics/stage2/lockstep_test/` | 40 s bags with/without `gzserver --lockstep`: exact camera frames but Mid-360 halved to 5 Hz; lockstep rejected | scratch launch file |
+| `diagnostics/stage2/worlds_load/` | 20 s bag + gate per world (room, room_plain, corridor, field, urban): all 13/13 PASS | `record_scripted.sh <world> 20` |
+| `diagnostics/stage2_e2e/` | end-to-end smoke test: the final Stage 2 bag through FAST-LIO2, FAST-LIVO2 and ORB-SLAM3 (generated configs), scored by the eval image (`eval/summary.md`); `harness/` holds the script and the guide's Stage 3 launch files it used | see `docs/stage1_2_audit.md` |
+| `diagnostics/stage1_tools_check/` | the 55 stored ORB-SLAM3 EuRoC runs re-scored with the guide's shared tools (`csv_to_tum.py`, `eval_traj.sh`, `results_table.py`): identical to final_results | `rescore.sh` (eval container) |
 
-Reports: `docs/fastlio2_reproduction_log.md`, `docs/fastlivo2_reproduction_log.md`, `docs/stage2_log.md`,
+Reports: `docs/fastlio2_reproduction_log.md`, `docs/fastlivo2_reproduction_log.md`, `docs/stage2_log.md`, `docs/stage1_2_audit.md`,
 `docs/FAST-LIO2_FAST-LIVO2_Test_Commands.pdf` (all commands to build, test and evaluate).
