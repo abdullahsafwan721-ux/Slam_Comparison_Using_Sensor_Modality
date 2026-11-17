@@ -28,6 +28,11 @@ Sim image (evtol/sim:v1, built 2026-11-05, image id `sha256:a736b36ea7db...`): P
 PyPI as of the build date: jinja2 3.1.6, pyros-genmsg 0.5.8, pandas 2.0.3, ...). pip left the
 system numpy 1.17.4 in place, so `import pandas` fails there; nothing in this project uses it.
 
+ORB-SLAM3 timing image (evtol/orbslam3:v1-times, built 2026-11-17, Stage 3): `FROM
+evtol/orbslam3:v1`, same commit, `#define REGISTER_TIMES` switched on in
+`include/Settings.h`, library and examples rebuilt. Used only by
+`scripts/stage3/orbslam3_timing.sh`; every accuracy number comes from `evtol/orbslam3:v1`.
+
 FAST-LIVO2 build flags: upstream vikit and FAST-LIVO2 hard-code `-march=native`. The image
 replaces it with one explicit target for Sophus, vikit and FAST-LIVO2: `-march=skylake`
 (AVX2, the paper's i7-10700K class; build arg CPU_ARCH). Reason: on this AVX-512 host the

@@ -50,6 +50,28 @@ mount:
   rpy: [3.14159265, 0.0, 0.0]
   mass_kg: 0.35
 
+landing_gear:
+  # Added in Stage 3 (not in the guide). PX4's iris has no legs in its collision model: it
+  # rests on its body box, whose underside is 0.055 m below base_link. The rig hangs below
+  # that (LiDAR origin 0.104 m, cameras 0.100 m below base_link) and has no collision, so on
+  # the ground the LiDAR and both cameras were 5 cm INSIDE the floor for the whole stationary
+  # hold that initialises every algorithm (docs/stage3_log.md). Four legs under the motors
+  # lift the vehicle so the sensors stand ~0.12 m above the ground, as any real belly mount
+  # requires. Only the spherical feet have collision geometry (so only they are visible to
+  # the LiDAR, at < 0.5 m, inside the blind zone both LiDAR methods discard); the legs are
+  # visual and lie behind the cameras' view. Consumed by scripts/common/make_legged_iris.py
+  # (inside the sim container), which adds the feet to iris::base_link itself.
+  # Livox's manual (v1.2, p. 9) asks for >= 0.5 m between the mounting surface and the ground
+  # for an upside-down Mid-360; -0.22 gives 0.16 m. foot_z -0.56 (0.5 m) was flown on
+  # 2026-11-17: on the iris it rocks at take-off and bounces 0.5 m sideways on landing, and
+  # the bag fails the sensor gate (docs/stage3_log.md, 3b). Kept at -0.22 for simulation;
+  # 0.5 m is a Phase 2 airframe requirement.
+  foot_z: -0.22                 # underside of the feet, m below base_link
+  legs_xy: [[0.13, 0.22], [0.13, -0.22], [-0.13, 0.20], [-0.13, -0.20]]   # under the rotors
+  radius: 0.008                 # leg (visual)
+  foot_radius: 0.012            # foot (collision): a sphere
+  mass_kg: 0.08
+
 ground_truth:
   topic: /ground_truth/odom   # pose of the IMU frame in the world frame
   rate_hz: 200

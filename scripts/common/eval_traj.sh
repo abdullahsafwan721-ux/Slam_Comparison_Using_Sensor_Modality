@@ -22,9 +22,14 @@ export MPLBACKEND=Agg                                   # headless plotting
 # ~/.evo/settings.json inside the throwaway container). Added; not in the project guide.
 evo_config set plot_backend Agg > /dev/null
 mkdir -p "$(dirname "$PRE")"
-evo_ape tum "$GT" "$EST" $ALIGN --t_max_diff 0.02 \
+# Re-scoring: when a result file already exists evo asks "overwrite? (y/n)" on stdin and
+# waits for ever in an unattended run (it hung a Stage 3 re-score for 3 h). Remove the old
+# outputs and pass --no_warnings (evo: "no warnings requiring user confirmation"). Added;
+# not in the project guide.
+rm -f "${PRE}_ape.zip" "${PRE}_ape.pdf" "${PRE}_ape.txt" "${PRE}_rpe.zip" "${PRE}_rpe.txt" "${PRE}_coverage.txt"
+evo_ape tum "$GT" "$EST" $ALIGN --t_max_diff 0.02 --no_warnings \
         --save_results "${PRE}_ape.zip" --save_plot "${PRE}_ape.pdf" --plot_mode xy > "${PRE}_ape.txt"
-evo_rpe tum "$GT" "$EST" $ALIGN --t_max_diff 0.02 --delta 1 --delta_unit m \
+evo_rpe tum "$GT" "$EST" $ALIGN --t_max_diff 0.02 --delta 1 --delta_unit m --no_warnings \
         --save_results "${PRE}_rpe.zip" > "${PRE}_rpe.txt"
 # Coverage: fraction of the ground-truth duration the estimate spans. An
 # algorithm that loses track halfway can still post a small APE on the half

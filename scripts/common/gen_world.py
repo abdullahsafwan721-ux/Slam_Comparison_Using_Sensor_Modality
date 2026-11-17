@@ -76,7 +76,11 @@ def box(name, x, y, z, sx, sy, sz, mat, yaw=0.0):
 
 def room(plain):
     rnd = random.Random(7)
-    pick = (lambda: "Gazebo/Grey") if plain else (lambda: rnd.choice(TEXTURED))
+    # The plain variant must still DRAW from rnd for every surface (and discard the
+    # result): otherwise the clutter positions that follow come out different, and "same
+    # room, only the textures differ" is false (found in Stage 3; the guide's lambda did
+    # not draw, and room_plain had another layout, with a box 0.2 m from the origin).
+    pick = (lambda: (rnd.choice(TEXTURED), "Gazebo/Grey")[1]) if plain else (lambda: rnd.choice(TEXTURED))
     w = header("room_plain" if plain else "room")
     L, W, H, t = 14.0, 10.0, 3.0, 0.2
     w += box("floor", 0, 0, -0.1, L, W, 0.1, "Gazebo/Grey" if plain else "Gazebo/WoodFloor")

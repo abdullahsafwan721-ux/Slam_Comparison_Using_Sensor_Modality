@@ -321,6 +321,8 @@ def gazebo_files(c, lid, cam, mnt, s):
 <!-- {HEADER} -->
 <sdf version="1.6">
   <model name="iris_evtol">
+    <!-- model://iris resolves to PX4's iris with rig.yaml's landing gear added
+         (scripts/common/make_legged_iris.py, run by sim_env.sh px4). -->
     <include>
       <uri>model://iris</uri>
     </include>{rig_link(c, pose_str(mnt['xyz'], mnt['rpy']), gravity=True, mass=mnt['mass_kg'])}
@@ -437,7 +439,11 @@ publish:
   blind_rgb_points: 0.0
 evo:
   seq_name: "sim"
-  pose_output_en: false
+  # true (Stage 3; the guide has false): the node then writes Log/result/sim.txt stamped with
+  # the state's own time (last_lio_update_time). /aft_mapped_to_init is stamped ros::Time::now()
+  # at publish, ~85 ms late, which alone tripled its APE (docs/stage3_log.md). Stage 1 scored
+  # this same file (scripts/run_fastlivo2.sh).
+  pose_output_en: true
 pcd_save:
   pcd_save_en: false
   type: 0

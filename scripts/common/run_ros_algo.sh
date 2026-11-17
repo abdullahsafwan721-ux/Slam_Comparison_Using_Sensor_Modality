@@ -11,6 +11,8 @@
 #
 # LATENCY=1 in the environment also records per-message processing latency
 # (see latency_probe.py) next to the output bag.
+# COST_PROC=<process name> also samples that process's CPU and memory (cost_probe.py)
+# into <out>.cost.csv. Added in Stage 3; not in the project guide.
 set -eo pipefail
 [ $# -ge 4 ] || { sed -n '2,15p' "$0"; exit 1; }
 LAUNCH=$1; BAG=$2; TOPIC=$3; OUT=$4; RATE=${5:-1.0}
@@ -24,6 +26,9 @@ roscore >/dev/null 2>&1 & CORE=$!
 until rostopic list >/dev/null 2>&1; do sleep 0.5; done
 rosparam set /use_sim_time true           # before any node starts
 
+if [ -n "${COST_PROC:-}" ]; then
+  python3 /scripts/common/cost_probe.py "$COST_PROC" "$LOG.cost.csv" > "$LOG.cost.log" 2>&1 & COSTP=$!
+fi
 roslaunch "$LAUNCH" "$@" rviz:=false > "$LOG.algo.log" 2>&1 & ALGO=$!
 sleep 5                                    # let the node subscribe before data flows
 rosbag record -O "$OUT" "$TOPIC" __name:=recorder >/dev/null 2>&1 & REC=$!
@@ -37,6 +42,7 @@ rosbag play --clock --hz=1000 -r "$RATE" -d 1 "$BAG" > "$LOG.play.log" 2>&1
 sleep 3                                    # drain the last scans
 [ -n "${PROBE:-}" ] && kill -INT $PROBE 2>/dev/null && wait $PROBE || true
 rosnode kill /recorder >/dev/null 2>&1 || true; wait $REC 2>/dev/null || true
-kill -INT $ALGO 2>/dev/null; wait $ALGO 2>/dev/null || true
-kill -INT $CORE 2>/dev/null; wait $CORE 2>/dev/null || true
+kill -INT $ALGO 2>/dev/null || true; wait $ALGO 2>/dev/null || true   # || true: node may have died already
+[ -n "${COSTP:-}" ] && { wait $COSTP 2>/dev/null || true; }   # exits when the node does
+kill -INT $CORE 2>/dev/null || true; wait $CORE 2>/dev/null || true
 echo "wrote $OUT  (algorithm log: $LOG.algo.log)"

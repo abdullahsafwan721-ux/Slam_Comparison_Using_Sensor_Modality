@@ -31,6 +31,15 @@ services:
       dockerfile: docker/orbslam3.Dockerfile
     image: evtol/orbslam3:v1
 
+  # Same source with upstream's REGISTER_TIMES switched on; used only to measure tracking
+  # time per frame (scripts/stage3/orbslam3_timing.sh). Accuracy runs stay on orbslam3:v1.
+  orbslam3_times:
+    <<: *common
+    build:
+      context: .
+      dockerfile: docker/orbslam3_times.Dockerfile
+    image: evtol/orbslam3:v1-times
+
   fastlio2:
     <<: *common
     build:

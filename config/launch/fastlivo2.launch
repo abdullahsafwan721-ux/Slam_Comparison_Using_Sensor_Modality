@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- FAST-LIVO2 with explicit config files. Mirrors upstream launch/mapping_avia.launch
+     minus the compressed-image republisher (simulation publishes raw images). -->
+<launch>
+  <arg name="cfg" default="/config/generated/fastlivo2_sim.yaml"/>
+  <arg name="cam" default="/config/generated/fastlivo2_sim_camera.yaml"/>
+  <arg name="rviz" default="false"/>
+  <!-- Stage 5 points this at the live-noised IMU; replay leaves the default. -->
+  <arg name="imu_topic" default="/livox/imu"/>
+  <rosparam command="load" file="$(arg cfg)"/>
+  <param name="common/imu_topic" value="$(arg imu_topic)"/>
+  <node pkg="fast_livo" type="fastlivo_mapping" name="laserMapping" output="screen">
+    <rosparam file="$(arg cam)"/>
+  </node>
+  <group if="$(arg rviz)">
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find fast_livo)/rviz_cfg/fast_livo2.rviz"/>
+  </group>
+</launch>

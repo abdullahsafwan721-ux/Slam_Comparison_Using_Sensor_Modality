@@ -13,4 +13,10 @@ if [ "${1:-}" = "px4" ]; then
   export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4:$PX4/Tools/simulation/gazebo-classic/sitl_gazebo-classic
 fi
 export GAZEBO_MODEL_PATH=/sim/models:${GAZEBO_MODEL_PATH:-}
+if [ "${1:-}" = "px4" ]; then
+  # Stage 3: PX4's iris plus the landing gear of rig.yaml, built here from the image's own
+  # iris.sdf and put first so that model://iris finds it (see make_legged_iris.py).
+  python3 /scripts/common/make_legged_iris.py /tmp/evtol_models
+  export GAZEBO_MODEL_PATH=/tmp/evtol_models:$GAZEBO_MODEL_PATH
+fi
 export GAZEBO_PLUGIN_PATH=/ws/devel/lib:${GAZEBO_PLUGIN_PATH:-}
