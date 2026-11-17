@@ -314,7 +314,7 @@ unchanged (`flights/room_square_gear05.*`, `diag/gear05/`, one run per algorithm
 
 | | Gear 0.22 m (kept) | Gear 0.56 m (tested) |
 |---|---|---|
-| Sensor gate (`--flight`) | all 17 pass | **fails**: IMU against ground-truth velocity 0.030 m/s RMS, worst 0.56 m/s |
+| Sensor gate (`--flight`) | all 17 pass | failed on 17 Nov: IMU against ground-truth velocity 0.030 m/s RMS, worst 0.56 m/s, all of it at the landing; passes under the Stage 4 gate, which leaves the landing impact out (0.003 m/s RMS elsewhere, see below) |
 | On the ground | still (gyro 8.5e-5 rad/s) | rocks 2.7 deg at lift-off; on landing bounces, rocks +-7 deg for 2 s, ends 0.52 m from the take-off point |
 | LiDAR sees its own feet | 0.4 % of points, inside the blind radius | no (all four below the -52 deg edge) |
 | FAST-LIO2 flight / whole-bag APE | 0.70 / 1.19 cm | 1.08 / 2.49 cm |
@@ -325,8 +325,11 @@ unchanged (`flights/room_square_gear05.*`, `diag/gear05/`, one run per algorithm
 Two things follow. (1) With the cameras 0.46 m above the floor ORB-SLAM3 keeps tracking
 after landing, which proves that its drift after landing comes from the camera height of
 this set-up (D3's caveat) and not from the algorithm. (2) Four rigid feet 0.56 m under a
-0.55 m quadrotor are not a usable landing gear in this simulation: the touch-down impact is
-violent enough that the recorded IMU no longer integrates to the true motion. **Decision:
+0.55 m quadrotor are not a usable landing gear in this simulation: the vehicle rocks at
+lift-off and bounces 0.5 m sideways on landing. (Corrected in Stage 4: the failed IMU check
+was the landing impact itself, which Gazebo's point-sampled IMU aliases on any hard
+touch-down, also with the 0.22 m gear; the Stage 4 gate leaves the landing out and this bag
+passes. See docs/stage4_log.md, deviation 5.) **Decision:
 the gear stays at 0.22 m**; results in flight do not depend on it (all three stay at or
 below 1.1 cm), and the flight-window scoring of D3 removes the ground artefact from the
 comparison. A stable 0.5 m gear (wider stance, which then enters the LiDAR's view, or

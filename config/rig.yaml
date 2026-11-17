@@ -63,8 +63,8 @@ landing_gear:
   # (inside the sim container), which adds the feet to iris::base_link itself.
   # Livox's manual (v1.2, p. 9) asks for >= 0.5 m between the mounting surface and the ground
   # for an upside-down Mid-360; -0.22 gives 0.16 m. foot_z -0.56 (0.5 m) was flown on
-  # 2026-11-17: on the iris it rocks at take-off and bounces 0.5 m sideways on landing, and
-  # the bag fails the sensor gate (docs/stage3_log.md, 3b). Kept at -0.22 for simulation;
+  # 2026-11-17: on the iris it rocks 2.7 deg at lift-off and bounces 0.5 m sideways on
+  # landing (docs/stage3_log.md, 3b). Kept at -0.22 for simulation;
   # 0.5 m is a Phase 2 airframe requirement.
   foot_z: -0.22                 # underside of the feet, m below base_link
   legs_xy: [[0.13, 0.22], [0.13, -0.22], [-0.13, 0.20], [-0.13, -0.20]]   # under the rotors

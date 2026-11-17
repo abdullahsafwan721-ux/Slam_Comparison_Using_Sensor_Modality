@@ -17,6 +17,15 @@ flight). What an estimator needs is that the IMU INTEGRATES to the true motion, 
 (rotated by the true attitude, gravity removed) against the ground-truth velocity. It
 also checks what only a flight can get wrong: camera frame intervals (PX4 runs Gazebo
 in lockstep), the stationary hold before take-off, and that the vehicle landed.
+
+The landing (from 0.1 s before the first ground contact after the highest point -- ground
+truth below take-off height + 0.10 m -- to 1 s after the last; a vehicle can bounce
+between the two) is left out of that check and reported on its own line (added in Stage 4). Gazebo's IMU reports the instantaneous acceleration at each 5 ms
+sample; the contact impulse of a landing lasts a few 1 ms physics steps and falls between
+samples, so the integral misses it (0.47 m/s in the room_plain flight, while every other
+window of that flight agrees to 0.008 m/s). Whether it shows up depends on how hard the
+vehicle happens to touch down. It is outside the flight window every metric is scored on
+(Decisions D1, D3) and is a limitation of the simulated IMU, listed in docs/stage4_log.md.
 """
 import math
 import sys
@@ -118,12 +127,25 @@ def main():
         d = np.gradient(imu[:, 0])
         v_gt = np.array([np.interp(imu[:, 0], t, gt[:, 8 + j]) for j in range(3)]).T
         n = 20
-        dv = [np.linalg.norm((a_w[i:i + n] * d[i:i + n, None]).sum(0) - (v_gt[i + n] - v_gt[i]))
-              for i in range(0, len(imu) - n, n)]
-        rms_dv = math.sqrt(np.mean(np.square(dv)))
+        starts = list(range(0, len(imu) - n, n))
+        dv = np.array([np.linalg.norm((a_w[i:i + n] * d[i:i + n, None]).sum(0) - (v_gt[i + n] - v_gt[i]))
+                       for i in starts])
+        tw = imu[starts, 0]
+        z0 = np.median(p[:200, 2])
+        up = p[:, 2] > z0 + 0.10
+        t_ld = t[len(t) - 1 - np.argmax(up[::-1])] if up.any() else t[-1] + 10
+        top = int(np.argmax(p[:, 2]))
+        down = np.nonzero(~up[top:])[0]
+        t_c = t[top + down[0]] if len(down) else t_ld        # first ground contact on the way down
+        impact = (tw + 0.1 > min(t_c, t_ld) - 0.1) & (tw < t_ld + 1.0)   # windows touching the landing
+        rest = dv[~impact]
+        rms_dv = math.sqrt(np.mean(np.square(rest)))
         check(rms_dv < 0.01, "IMU integrates to GT velocity (0.1 s)",
               "RMS %.4f m/s, worst %.4f m/s over %d windows  (double-difference check: %.2f m/s^2, informative)"
-              % (rms_dv, max(dv), len(dv), rms))
+              % (rms_dv, rest.max(), len(rest), rms))
+        if impact.any():
+            print("INFO  landing impact(s), not checked              worst %.4f m/s over %d windows at %.1f-%.1f s"
+                  % (dv[impact].max(), int(impact.sum()), tw[impact].min(), tw[impact].max() + 0.1))
     span = np.ptp(p, axis=0)
     check(span.max() > 1.0, "rig actually moved", "extent xyz = %s m" % np.round(span, 2))
     if flight:
@@ -140,9 +162,19 @@ def main():
         check(len(iv) > 0 and iv.min() > 0.040 and iv.max() < 0.065, "camera frame intervals 40-65 ms",
               "min %.1f ms, max %.1f ms, %d outside" % (iv.min() * 1e3, iv.max() * 1e3,
                                                         int(((iv <= 0.040) | (iv >= 0.065)).sum())))
-        lv = np.diff(stamps["/livox/lidar"])
-        check(lv.min() > 0.090 and lv.max() < 0.110, "LiDAR scan intervals 90-110 ms",
-              "min %.1f ms, max %.1f ms" % (lv.min() * 1e3, lv.max() * 1e3))
+        # In flight every interval must be 90-110 ms; anywhere in the bag, no dropped (~200 ms)
+        # or duplicated (0 ms) scan. (Stage 4: a single scan 13 ms late while PX4 and MAVROS start
+        # up on the ground is harmless -- its stamp still describes its geometry -- whereas
+        # several simulators at once made scans slip all through the flight, 79-124 ms.)
+        ls = np.array(stamps["/livox/lidar"])
+        lv = np.diff(ls)
+        fl = (ls[1:] >= t_to) & (ls[1:] <= t_ld)
+        lf = lv[fl] if fl.any() else lv
+        out = int(((lv <= 0.090) | (lv >= 0.110)).sum())
+        check(lf.min() > 0.090 and lf.max() < 0.110 and lv.min() > 0.050 and lv.max() < 0.150,
+              "LiDAR scan intervals 90-110 ms in flight",
+              "in flight min %.1f, max %.1f ms; whole bag min %.1f, max %.1f ms, %d outside 90-110"
+              % (lf.min() * 1e3, lf.max() * 1e3, lv.min() * 1e3, lv.max() * 1e3, out))
 
     print("\n%s" % ("ALL CHECKS PASSED -- %s." % ("flight bag is sound" if flight else "Stage 2 gate open") if fails == 0 else "%d CHECK(S) FAILED." % fails))
     sys.exit(1 if fails else 0)

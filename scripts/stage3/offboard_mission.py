@@ -2,7 +2,8 @@
 """Fly a repeatable profile in PX4 OFFBOARD mode through MAVROS.
 
     python3 offboard_mission.py <profile> [--alt 1.5] [--speed 2] [--size 6] [--laps 2]
-                                          [--yaw fixed|tangent] [--hop 0.4] [--sitl-params]
+                                          [--yaw fixed|tangent] [--hop 0.4] [--hop-alt A]
+                                          [--sitl-params]
 
 profiles
   hover    take off, hold 30 s, land
@@ -21,6 +22,16 @@ ORB-SLAM3's stereo-inertial initialisation only starts once the mean acceleromet
 changes by >= 0.5 m/s^2 between two consecutive frames (Tracking.cc, "not enough
 acceleration"); a multirotor following smooth setpoints never produces that, and on the
 first Stage 3 flight ORB-SLAM3 never started. A thrust step does.
+
+--hop-alt A (Stage 4 option; default: the cruise altitude, as in Stage 3): fly the hop at
+min(--alt, A) on the way up instead. Tried at 1.5 m and rejected: over the urban plaza the
+downward-looking camera sees dark, uniform paving (~320 ORB features at 1.9 m, ORB-SLAM3
+needs > 500), so a hop there cannot start ORB-SLAM3; at cruise altitude the buildings are
+in view (600-1200 features).
+Stage 4 fix: the hop waits for the vehicle. PX4 lifts off ~3 s after arming, and a hop
+timed only from arming fell inside the take-off transient at 1.5 m (no step in the ground
+truth). The hop now starts 3 s after the MEASURED height (/mavros/local_position/pose) first
+reaches hop height - 0.05 m, and the vehicle gets 3 s to settle back before going on.
 Coordinates are MAVROS local ENU, origin at the take-off point.
 --sitl-params sets the parameters that let SITL arm and stay in OFFBOARD
 without an RC transmitter. NEVER use it on a real vehicle.
@@ -35,6 +46,12 @@ from mavros_msgs.msg import ParamValue, State
 from mavros_msgs.srv import CommandBool, ParamSet, SetMode
 
 state = State()
+z_now = None
+
+
+def on_pose(m):
+    global z_now
+    z_now = m.pose.position.z
 
 
 def on_state(m):
@@ -77,11 +94,13 @@ def main():
     ap.add_argument("--laps", type=float, default=2.0)
     ap.add_argument("--yaw", choices=["fixed", "tangent"], default="fixed")
     ap.add_argument("--hop", type=float, default=0.4)
+    ap.add_argument("--hop-alt", type=float, default=None)
     ap.add_argument("--sitl-params", action="store_true")
     a = ap.parse_args(rospy.myargv()[1:])
 
     rospy.init_node("offboard_mission")
     rospy.Subscriber("/mavros/state", State, on_state)
+    rospy.Subscriber("/mavros/local_position/pose", PoseStamped, on_pose)
     pub = rospy.Publisher("/mavros/setpoint_position/local", PoseStamped, queue_size=10)
     for srv in ("/mavros/cmd/arming", "/mavros/set_mode", "/mavros/param/set"):
         rospy.wait_for_service(srv, timeout=120)
@@ -138,7 +157,9 @@ def main():
             rate.sleep()
     rospy.loginfo("armed, OFFBOARD")
 
-    climb = a.alt / 1.0                                    # 1 m/s climb
+    h1 = min(a.alt, a.hop_alt) if (a.hop > 0 and a.hop_alt) else a.alt   # height of the first leg of the climb
+    climb = h1 / 1.0                                       # 1 m/s climb
+    climb2 = (a.alt - h1) / 1.0                            # rest of the climb, after the hop
     total = a.laps * {"hover": 0, "line": 2 * a.size, "square": 4 * a.size,
                       "figure8": 6.1 * a.size}[a.profile]
     cruise = 30.0 if a.profile == "hover" else total / a.speed
@@ -152,14 +173,30 @@ def main():
     x0, y0 = 0.0, 0.0
     last = (x0, y0)
     yaw = 0.0
+    hop_start = None if a.hop > 0 else climb + 2.0         # set once the vehicle is at h1
+    reached = None
     while not rospy.is_shutdown():
         t = (rospy.Time.now() - start).to_sec()
-        if t < climb + 2.0:                                # climb above the start point
-            x, y, z = x0, y0, min(a.alt, a.alt * t / climb)
-        elif a.hop > 0 and t < climb + 2.0 + 3.0:          # initialisation hop: up 1 s, back 2 s
-            x, y, z = x0, y0, a.alt + (a.hop if t < climb + 3.0 else 0.0)
+        if hop_start is None:
+            if reached is None and z_now is not None and z_now >= h1 - 0.05:
+                reached = t
+                rospy.loginfo("at hop height %.2f m after %.1f s", z_now, t)
+            if reached is not None and t >= max(climb + 2.0, reached + 3.0):
+                hop_start = t
+                rospy.loginfo("hop %.2f m at %.1f s", a.hop, t)
+            elif t > climb + 30.0:
+                sys.exit("!! vehicle never reached the hop height %.2f m" % h1)
+        hs = hop_start if hop_start is not None else 1e9
+        hop_end = hs + (4.0 if a.hop > 0 else 0.0)
+        rest = climb2 + 2.0 if climb2 > 0 else 0.0         # second leg + 2 s settle, if any
+        if t < hs:                                         # climb above the start point, hold
+            x, y, z = x0, y0, min(h1, h1 * t / climb)
+        elif a.hop > 0 and t < hop_end:                    # initialisation hop: up 1 s, back 3 s
+            x, y, z = x0, y0, h1 + (a.hop if t < hs + 1.0 else 0.0)
+        elif t < hop_end + rest:                           # rest of the climb, 1 m/s
+            x, y, z = x0, y0, min(a.alt, h1 + (t - hop_end))
         else:
-            tc = t - climb - 2.0 - (3.0 if a.hop > 0 else 0.0)
+            tc = t - hop_end - rest
             if tc > cruise + ramp:
                 break
             # distance travelled with a linear speed ramp in and out

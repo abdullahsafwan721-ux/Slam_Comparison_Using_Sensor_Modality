@@ -8,7 +8,8 @@ Runs INSIDE the eval container (its python3 is the evo virtualenv):
 Added in Stage 3 (not in the project guide); definitions are in
 docs/eVTOL_SLAM_Research_and_Stage3-5_Plan.pdf, Part 3. Writes
   <prefix>_extra.json   one record per run (results_table.py aggregates them)
-  <prefix>_errors.csv   error over time: t, ex, ey, ez, e_h, e_v, e_3d, yaw_err_deg
+  <prefix>_errors.csv   error over time: t, ex, ey, ez, e_h, e_v, e_3d, yaw_err_deg (whole-
+                        trajectory alignment, as evo), e_3d_flight (flight-window alignment)
 
 Alignment is evo's own (same association, --t_max_diff 0.02, same SE3 Umeyama call as
 evo_ape --align), so ape_rmse here equals eval_traj.sh's APE; the script checks that
@@ -25,7 +26,10 @@ against <prefix>_ape.zip when it exists and stops if they differ by more than 1e
                               drifts on its IMU; that spoils a whole-trajectory APE)
   H2 drift_pct                mean RPE translation over --seg metre segments / seg x 100
   H3 tsr                      tracking success rate: fraction of the flight window (0.1 s
-                              grid) where a pose exists within 0.5 s and its error < tau
+                              grid) where a pose exists within 0.5 s and its error < tau,
+                              error under the flight-window alignment (Decision D3; changed in
+                              Stage 4 -- until then the whole-trajectory alignment was used,
+                              kept as tsr_whole_align)
      tsr_start                the same, but with the trajectory aligned on its first 20 s
                               of flight only. A run that tracks for a minute and then diverges keeps
                               its good minute here; under the global alignment the diverged
@@ -162,11 +166,13 @@ def main():
                yaw_mean_deg=float(np.mean(yaw)), failed=False)
 
     # flight-window APE: alignment and error on [w0, w1] only
+    e_flight = None
     air = (est.timestamps >= w0) & (est.timestamps <= w1)
     if air.sum() >= 10 and np.ptp(ref.positions_xyz[air], axis=0).max() > 1.0:
         try:
             r_a, t_a, _ = geometry.umeyama_alignment(p_raw[air].T, ref.positions_xyz[air].T, False)
             e_all = (p_raw @ r_a.T + t_a) - ref.positions_xyz
+            e_flight = np.linalg.norm(e_all, axis=1)
             ea = e_all[air]
             out.update(ape_air_rmse=rms(np.linalg.norm(ea, axis=1)),
                        ape_air_h_rmse=rms(np.linalg.norm(ea[:, :2], axis=1)),
@@ -214,7 +220,9 @@ def main():
     left, right = est.timestamps[k - 1], est.timestamps[k]
     near = np.where(np.abs(grid - left) <= np.abs(right - grid), k - 1, k)
     close = cov & (np.abs(est.timestamps[near] - grid) <= NEAR)
-    ok = close & (e_3d[near] < a.tau)
+    e_tsr = e_flight if e_flight is not None else e_3d   # D3: the flight-window alignment
+    ok = close & (e_tsr[near] < a.tau)
+    out["tsr_whole_align"] = float((close & (e_3d[near] < a.tau)).mean())
     out["tsr_start"] = float((close & (e_start[near] < a.tau)).mean()) if e_start is not None else float("nan")
     out.update(window_start=float(w0), window_end=float(w1), window_s=float(w1 - w0),
                coverage_air=float(cov.mean()), tsr=float(ok.mean()),
@@ -232,10 +240,11 @@ def main():
     with open(a.prefix + "_extra.json", "w") as f:
         json.dump(out, f, indent=1)
     with open(a.prefix + "_errors.csv", "w") as f:
-        f.write("t,ex,ey,ez,e_h,e_v,e_3d,yaw_err_deg\n")
+        f.write("t,ex,ey,ez,e_h,e_v,e_3d,yaw_err_deg,e_3d_flight\n")
         for i in range(len(e)):
-            f.write("%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f\n" % (
-                est.timestamps[i], e[i, 0], e[i, 1], e[i, 2], e_h[i], e_v[i], e_3d[i], yaw[i]))
+            f.write("%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f,%s\n" % (
+                est.timestamps[i], e[i, 0], e[i, 1], e[i, 2], e_h[i], e_v[i], e_3d[i], yaw[i],
+                "%.5f" % e_flight[i] if e_flight is not None else ""))
     print("%s  APE h %.4f v %.4f m  yaw %.2f deg  drift %.2f %%  TSR %.3f  cov_air %.3f  startup %.1f s" % (
         os.path.basename(a.prefix), out["ape_h_rmse"], out["ape_v_rmse"], out["yaw_rmse_deg"],
         out["drift_pct"], out["tsr"], out["coverage_air"], out["startup_s"]))

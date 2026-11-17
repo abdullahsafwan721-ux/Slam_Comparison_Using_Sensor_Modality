@@ -21,10 +21,12 @@
 #   --  `docker compose run -T` (no TTY: the script also runs unattended / in background)
 #   --  the noised bag, ground truth and EuRoC folder are made once and reused if present
 #       (fixed seed, so a re-run would produce identical files)
-# Environment: TAU=<m> TSR threshold (default 0.25, indoor); ALGOS="fastlio2 fastlivo2 orbslam3".
+# Environment: TAU=<m> TSR threshold (default 0.25, indoor); ALGOS="fastlio2 fastlivo2 orbslam3";
+#   RATE=<x> replay rate of the two ROS methods (default 1.0; Stage 4 headroom test; ORB-SLAM3's
+#   EuRoC binary always paces itself to the image stamps, so RATE does not apply to it).
 set -eo pipefail
 BAG=$1; COND=$2; OUT=${3%/}; RUNS=${4:-3}; SCALE=${5:-1.0}
-TAU=${TAU:-0.25}; ALGOS=${ALGOS:-"fastlio2 fastlivo2 orbslam3"}
+TAU=${TAU:-0.25}; ALGOS=${ALGOS:-"fastlio2 fastlivo2 orbslam3"}; RATE=${RATE:-1.0}
 # Host paths map into containers only under output/ (mounted at /output).
 for p in "$BAG" "$OUT"; do
   case "$p" in output/*) ;; *) echo "!! '$p' must be a path under output/, relative to the project root"; exit 1;; esac
@@ -38,13 +40,14 @@ EU=euroc_${COND}__imu${SCALE}          # ORB-SLAM3's input carries the IMU, so i
 mkdir -p "$OUT"/{bags,gt,eval,orbslam3,fastlio2,fastlivo2}
 # containers write as root; hand everything back so the host can delete re-creatable files
 trap '$C eval chown -R $(id -u):$(id -g) /$OUT >/dev/null 2>&1 || true' EXIT
-echo "== $(date -Is)  bag=$BAG cond=$COND runs=$RUNS imu-scale=$SCALE tau=$TAU  git=$(git rev-parse --short HEAD)"
+echo "== $(date -Is)  bag=$BAG cond=$COND runs=$RUNS imu-scale=$SCALE tau=$TAU rate=$RATE  git=$(git rev-parse --short HEAD)"
 
 echo "== inject IMU noise (x$SCALE) and extract ground truth"
 # The noised copy, the ground truth and every run in $OUT belong to ONE recording. If the
 # source bag was recorded again under the same name, reusing them would silently score the
 # earlier recording (it happened: a flight was re-flown, the re-run reused the old data).
-if [ -s ".$IN" ] && [ "$BAG" -nt ".$IN" ]; then
+# (A re-score, runs = 0, reads only the ground truth and the trajectories already in $OUT.)
+if [ "$RUNS" -gt 0 ] && [ -s ".$IN" ] && [ "$BAG" -nt ".$IN" ]; then
   echo "!! $BAG is newer than $OUT/bags/$(basename "$IN"): everything in $OUT comes from an EARLIER"
   echo "   recording of that bag. Move $OUT aside (or choose another output directory) and run again."
   exit 1
@@ -66,11 +69,11 @@ for r in $(seq 1 "$RUNS"); do
     echo "== $name"
     if [ $algo = fastlio2 ]; then
       $C -e LATENCY=1 -e COST_PROC=$proc $algo bash /scripts/common/run_ros_algo.sh \
-          /config/launch/$algo.launch "$IN" "$topic" "/$OUT/$algo/$name.bag" 1.0
+          /config/launch/$algo.launch "$IN" "$topic" "/$OUT/$algo/$name.bag" "$RATE"
       # bag_to_tum.py exits non-zero on an empty topic; an algorithm that published
       # nothing must become a scored failure, not abort the batch
       $C eval $RP /scripts/common/bag_to_tum.py "/$OUT/$algo/$name.bag" "$topic" "/$OUT/$algo/$name.tum" \
-          || : > "$OUT/$algo/$name.tum"
+          || [ -e "$OUT/$algo/$name.tum" ] || : > "$OUT/$algo/$name.tum"   # bag_to_tum (root) may have created it empty
     else
       # FAST-LIVO2 stamps /aft_mapped_to_init with ros::Time::now() at publish. Its own pose
       # file (evo/pose_output_en, Log/result/sim.txt) carries the same poses stamped with the
@@ -78,9 +81,9 @@ for r in $(seq 1 "$RUNS"); do
       # true output latency.
       E="$OUT/$algo/evo_$name"; rm -rf "$E"; mkdir -p "$E"
       $C -v "$PWD/$E:/ws/src/FAST-LIVO2/Log/result" -e COST_PROC=$proc $algo \
-          bash /scripts/common/run_ros_algo.sh /config/launch/$algo.launch "$IN" "$topic" "/$OUT/$algo/$name.bag" 1.0
+          bash /scripts/common/run_ros_algo.sh /config/launch/$algo.launch "$IN" "$topic" "/$OUT/$algo/$name.bag" "$RATE"
       $C eval $RP /scripts/common/bag_to_tum.py "/$OUT/$algo/$name.bag" "$topic" "/$OUT/$algo/$name.topic.tum" \
-          || : > "$OUT/$algo/$name.topic.tum"
+          || [ -e "$OUT/$algo/$name.topic.tum" ] || : > "$OUT/$algo/$name.topic.tum"
       cp "$E/sim.txt" "$OUT/$algo/$name.tum" 2>/dev/null || : > "$OUT/$algo/$name.tum"
       if [ "$(wc -l < "$OUT/$algo/$name.tum")" = "$(wc -l < "$OUT/$algo/$name.topic.tum")" ]; then
         paste -d' ' "$OUT/$algo/$name.tum" "$OUT/$algo/$name.topic.tum" | \
