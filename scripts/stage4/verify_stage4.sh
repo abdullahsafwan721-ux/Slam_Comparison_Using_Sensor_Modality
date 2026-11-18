@@ -98,6 +98,7 @@ fi
 
 if [ "${FLY:-0}" = 1 ]; then
   step 9 "new PX4 flight of room_plain (GUI=${GUI:-false}), then the sensor gate"
+  mkdir -p "$V/fly"            # made by the host: a container would make it root-owned
   $C -e SPAWN="-2.0 -1.8" -e GUI="${GUI:-false}" sim bash /scripts/stage3/px4_record.sh room_plain square \
       "/$V/fly/room_plain.bag" --size 4 --alt 1.5 --speed 1.5 --laps 3 > "$V/fly.log" 2>&1
   $C sim bash -c "source /scripts/common/sim_env.sh && python3 /scripts/stage2/verify_sim_bag.py /$V/fly/room_plain.bag --flight" \
