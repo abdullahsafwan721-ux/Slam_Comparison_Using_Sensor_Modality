@@ -30,6 +30,8 @@ docker compose run --rm -T sim bash -c "source /scripts/common/sim_env.sh && pyt
     /output/stage4/altitude/ground_points.csv /output/stage4/flights/urban_alt{10,20,30,40,50,60}.bag"
 docker compose run --rm -T eval python3 /scripts/stage4/plot_sweeps.py /output/stage4
 python3 scripts/stage4/stage4_figures.py output/stage4
+# verification (reads output/stage4, writes only output/verify_stage4; ~20 min)
+bash scripts/stage4/verify_stage4.sh             # REPLAY=0 skips the live replay; FLY=1 GUI=true adds a flight
 ```
 
 | File | Origin | Role |
@@ -41,6 +43,7 @@ python3 scripts/stage4/stage4_figures.py output/stage4
 | `scripts/stage4/ground_points.py` | **new** (plan 5.3) | measured ground returns per scan against the scan-pattern prediction |
 | `scripts/stage4/stage4_figures.py` | **new** (plan 5.3) | scorecard, fault timelines, altitude, cost; `stage4_tables.md` |
 | `scripts/stage4/imu_windows.py` | **new** | diagnostic: where a bag's IMU stops integrating to the ground truth |
+| `scripts/stage4/verify_stage4.sh` (+ `verify_stage4.py`, `verify_score.sh`) | **new** | verification: flights and gates, matrix complete, all runs re-scored from scratch and compared, tables and figures regenerated, the log's numbers against the data, fault copies rebuilt, a live replay |
 | `scripts/stage2/verify_sim_bag.py` | changed | `--flight` leaves the landing impact out of the IMU check, reports it |
 | `scripts/common/metrics_extra.py` | changed | TSR on the flight-window alignment; `e_3d_flight` in `_errors.csv` |
 | `scripts/stage3/run_all_algos.sh` | extended | `RATE=` replay rate for the headroom test; empty-output fallback fixed (deviation 13) |
@@ -107,24 +110,32 @@ structure at all over the urban sweep; the open field is the case with nothing i
 
 ## Results
 
-Numbers: flight-window APE RMSE (D3), mean of 3 runs; per-run values in
+Numbers: flight-window APE RMSE (D3), median of 3 runs (as in `stage4_tables.md`); per-run values in
 `output/stage4/<group>/eval/`, all tables in `output/stage4/stage4_tables.md`. Runs of the
 same bag were identical to the last digit for FAST-LIO2 and FAST-LIVO2 in most conditions
 (deterministic replay); ORB-SLAM3 varies run to run (multi-threaded).
+
+Corrected 18 Nov by `scripts/stage4/verify_stage4.sh`, which checks every number in these tables
+against a fresh re-scoring of all runs. The first version said "mean" where the
+numbers were medians, and its altitude, speed, IMU and headroom tables quoted the
+*horizontal* part of the flight APE, not the total. At 40-60 m that hid most of the error: FAST-LIO2 at 40 m is 1.7 cm,
+not 0.9 cm. The altitude table's ORB-SLAM3 "coverage" was its tracking success rate. The data,
+`stage4_tables.md` and the figures were right; only these tables and two sentences
+(B: ORB-SLAM3's trend with height) changed.
 
 ### B. Altitude (urban square, 4 m/s; `fig_altitude.png`)
 
 | Altitude | FAST-LIO2 | FAST-LIVO2 | ORB-SLAM3 (coverage) |
 |---|---|---|---|
 | 10 m | 1.1 cm | 0.4 cm | **never starts** (3/3) |
-| 20 m | 0.5 cm | 0.3 cm | 15.5 cm (0.76) |
-| 30 m | 0.6 cm | 0.3 cm | 11.8 cm (0.72) |
-| 40 m | 0.9 cm | 0.9 cm | 18.1 cm (0.69) |
-| 50 m | 3.5 cm | 4.7 cm | 18.4 cm (0.62) |
-| 60 m | 46 cm | **diverges** (137 m; 3/3) | 20.3 cm (0.62) |
+| 20 m | 0.5 cm | 0.4 cm | 17.5 cm (0.77) |
+| 30 m | 0.6 cm | 0.4 cm | 14.9 cm (0.72) |
+| 40 m | 1.7 cm | 1.8 cm | 25.7 cm (0.69) |
+| 50 m | 5.6 cm | 4.9 cm | 25.9 cm (0.62) |
+| 60 m | 46 cm (one run 17 cm) | **diverges** (530 m; 3/3) | 32.0 cm (0.63) |
 
 Hypothesis largely right for the LiDAR methods, with a twist. Both are flat to 30 m, then
-degrade, **vertical error first** (FAST-LIO2 vertical 0.1 cm at 10 m, 4.3 cm at 50 m) as
+degrade, **vertical error first** (FAST-LIO2 vertical 0.1 cm at 10 m, 1.4 cm of 1.7 cm at 40 m, 4.3 cm at 50 m) as
 the ground returns vanish (measured: ~11 000 ground points per scan at 10 m, ~1 000 at
 30 m, none from 40 m; `altitude/ground_points.csv`); from 40 m only roofs and walls are in
 range. "FAST-LIVO2's camera may carry it" is wrong at the top: at 60 m FAST-LIVO2 tracks the
@@ -132,18 +143,20 @@ climb and the hop, then diverges ~40 s into the square in all three runs (km-sca
 FAST-LIO2 on the same scans holds 46 cm. With few LiDAR points the photometric update
 dominates and pulls the state away; we did not isolate the mechanism further (flagged).
 ORB-SLAM3 needs the hop to start (start-up = time of the hop: 23 s at 20 m to 63 s at
-60 m, hence coverage 0.62-0.76) and then holds 12-20 cm with no clear trend in height. At
+60 m, hence coverage 0.62-0.77) and then holds 15-32 cm, growing with height. At
 10 m it builds a map at the hop, the map is reset before its inertial initialisation, and
-no later jerk restarts it (the same in the first, superseded set). Its error barely grows
-with height because what it tracks (rooftops and walls 10-50 m away) does not change much.
+no later jerk restarts it (the same in the first, superseded set). The growth is mostly
+vertical (8.7 cm at 20 m, 23.2 cm at 60 m); the horizontal part stays at 12-20 cm with no
+clear trend, plausibly because what it tracks (rooftops and walls 10-50 m away) does not
+change much. Why the vertical part grows was not investigated.
 
 ### C. Speed (figure-8 at 20 m, yaw along the path; `fig_speed.png`)
 
 | Speed | FAST-LIO2 | FAST-LIVO2 | ORB-SLAM3 |
 |---|---|---|---|
-| 2 m/s | 0.4 cm | 0.3 cm | 8.8 cm |
-| 5 m/s | 0.5 cm | 0.9 cm | 6.7 cm |
-| 8 m/s | 0.4 cm | 0.9 cm | 5.6 cm |
+| 2 m/s | 0.4 cm | 0.3 cm | 10.4 cm |
+| 5 m/s | 0.6 cm | 0.9 cm | 7.3 cm |
+| 8 m/s | 0.4 cm | 0.9 cm | 6.8 cm |
 
 Hypothesis wrong: ORB-SLAM3 does not suffer at 8 m/s; it gets *better* (more parallax per
 frame, no motion blur in the simulation -- the threat the hypothesis already named).
@@ -156,10 +169,10 @@ stressor in this simulation; motion blur and rolling shutter would be (Phase 2).
 
 | IMU noise | FAST-LIO2 | FAST-LIVO2 | ORB-SLAM3 |
 |---|---|---|---|
-| x1 | 0.5 cm | 0.9 cm | 7.8 cm |
-| x3 | 0.8 cm | 0.9 cm | 9.8 cm |
-| x10 | 0.7 cm | 0.9 cm | 14.7 cm |
-| x30 | 1.0 cm | 1.1 cm | **diverges** (88 m, 3/3) |
+| x1 | 0.6 cm | 0.9 cm | 8.6 cm |
+| x3 | 0.8 cm | 0.9 cm | 11.5 cm |
+| x10 | 0.7 cm | 1.0 cm | 17.7 cm |
+| x30 | 1.0 cm | 1.1 cm | **diverges** (98 m, 3/3) |
 
 Hypothesis right. The LiDAR methods barely notice a 30x worse IMU (2x at most); ORB-SLAM3
 degrades steadily and fails at x30. A side effect explains its start-up times: the
@@ -222,7 +235,7 @@ its map 131 times ("Not enough motion for initializing", LocalMapping) -- covera
 
 | Replay | FAST-LIO2 room / urban_speed5 | FAST-LIVO2 room / urban_speed5 |
 |---|---|---|
-| 1x (matrix) | 0.70 / 0.53 cm; CPU 0.15 / 0.24 cores; pose age p95 8 / 11 ms | 0.29 / 0.91 cm; CPU 0.69 / 0.70; 84 / 113 ms |
+| 1x (matrix) | 0.70 / 0.55 cm; CPU 0.15 / 0.24 cores; pose age p95 8 / 11 ms | 0.29 / 0.92 cm; CPU 0.69 / 0.70; 84 / 113 ms |
 | 2x | unchanged; CPU 0.26 / 0.45; 11 / 18 ms | unchanged; CPU 0.85 / 1.19; 86 / 124 ms |
 | 4x | unchanged; CPU 0.41 / 0.71; 17 / 29 ms | unchanged; CPU 1.42 / 1.88; 107 / **262 ms** |
 | 8x | unchanged; CPU 0.60 / 1.06; 28 / 51 ms | room unchanged but output **7.9 s late**; urban: coverage **0.48**, 1.03 cm |
@@ -237,7 +250,8 @@ on load (deviation 13); in the re-run every FAST-LIO2 run produced output.
 ### What the matrix says, in one paragraph
 
 No method wins everywhere. FAST-LIVO2 is the most accurate wherever both its sensors see
-structure (room, corridor, field, urban to 30 m) and the only one that survives the open
+structure (room, corridor, field, the urban square up to 30 m at 4 m/s; at 5-8 m/s FAST-LIO2 is
+ahead by under 0.6 cm) and the only one that survives the open
 field and the corridor, but it is the most sensitive to camera timing, the only one that
 degrades with speed, it diverged at 60 m where FAST-LIO2 held, and it has the least
 compute headroom. FAST-LIO2 is the cheapest and the most robust to IMU grade, speed and
@@ -253,7 +267,7 @@ flight, fails on dim images, repetitive texture and noisy IMUs. Losing a LiDAR f
 |---|---|---|---|
 | room | 0.70 cm | 0.29 cm | 0.60 cm (coverage 0.98) |
 | room_plain | 0.75 cm | 0.30 cm | 0.73 cm (coverage 0.96) |
-| corridor (60 m line) | 28.6 cm, drift 1.5 % | 7.5 cm, drift 0.3 % | **12.5 m**, drift 21 % |
+| corridor (60 m line) | 28.6 cm, drift 1.5 % | 7.4 cm, drift 0.3 % | **12.5 m**, drift 21 % |
 
 - **room_plain**: hypothesis wrong -- ORB-SLAM3 still tracks (0.73 cm). The world removes the
   wall and box textures but not the lit edges and corners of the boxes; that is enough for
