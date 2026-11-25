@@ -41,7 +41,7 @@ The guide's "steady **in the Gazebo window**" criterion is a judgement made by l
 were watched with Gazebo and RViz open, and pictures kept (below), but the final judgement is
 the user's: `FLY=1 GUI=true bash scripts/stage5/verify_stage5.sh`.
 
-Started 2026-11-18 on commit `38922e6` (Stage 4 verified), with the same images and no
+Started 2026-11-18 on commit `d2466ab` (Stage 4 verified), with the same images and no
 rebuild. The go-ahead was given by the user on 18 Nov.
 
 ## How to reproduce

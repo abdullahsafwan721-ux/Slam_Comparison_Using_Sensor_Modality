@@ -1,6 +1,6 @@
 # Stages 1 and 2 -- goal audit and end-to-end compatibility (2026-11-05)
 
-Checked after the Stage 2 commit (`b724ea4`), on the GPU (RTX 5090, driver 595.99.02), against
+Checked after the Stage 2 commit (`4c40c0a`), on the GPU (RTX 5090, driver 595.99.02), against
 `eVTOL-SLAM-Complete-Project-Guide.pdf`. Question: is every goal the guide sets for Stages 1 and 2
 met, and do the Stage 1 images, the Stage 2 simulator and the evaluation chain work together the
 way Stage 3 will use them?
@@ -18,7 +18,7 @@ reproducing the accuracy their papers publish.*
 | One eval image for all algorithms (1.6) | `evtol/eval:v1`, evo 1.31.1 | met |
 | Three algorithm images (1.9-1.11) | `evtol/orbslam3:v1`, `fastlio2:v1`, `fastlivo2:v1`; quick suite **24 PASS / 0 FAIL / 1 SKIP** (skip: NTU-VIRAL reference files are in the bin) | met |
 | Shared evaluation tools (1.7) | were **missing** (this repo did Stage 1 from the earlier runbooks); added now, see below | **fixed** |
-| The deliverable and gate (1.12): table of our error beside the published error, within roughly 10-20 % | `final_results/{orbslam3,fastlio2,fastlivo2}_comparison.csv` (Stage 1 closed 2026-10-20, `e8a3fdc`); ORB-SLAM3 mean of 11 medians 0.0327 m vs 0.035 m (-6 %); every non-green FAST-LIO2/FAST-LIVO2 row is explained in its reproduction log; `git diff final_results/` empty | met |
+| The deliverable and gate (1.12): table of our error beside the published error, within roughly 10-20 % | `final_results/{orbslam3,fastlio2,fastlivo2}_comparison.csv` (Stage 1 closed 2026-10-20, `447c47e`); ORB-SLAM3 mean of 11 medians 0.0327 m vs 0.035 m (-6 %); every non-green FAST-LIO2/FAST-LIVO2 row is explained in its reproduction log; `git diff final_results/` empty | met |
 | "Earlier runbook" defects (front matter): ORB-SLAM3 output name, ns timestamps, FAST-LIVO2 topic | `scripts/eval_orbslam3.sh` divides by 1e9; run scripts pass bare names; FAST-LIVO2 scored on `/aft_mapped_to_init` | met |
 
 Datasets differ from the guide's suggestions (FAST-LIO2: LIO-SAM/NCLT/UTBM/LiLi-OM instead of the

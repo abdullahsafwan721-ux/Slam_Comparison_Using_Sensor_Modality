@@ -12,7 +12,7 @@ magnitude worse than the others. **Result: PASSED on 2026-11-16**, on the third 
 recording of the same flight, after a full re-verification (section "Re-verification,
 2026-11-17"). The tables below are the files on disk today.
 
-Run on 2026-11-16 and 17, repo at `080671b` plus this stage's changes, 32-core host, RTX 5090,
+Run on 2026-11-16 and 17, repo at `db3116f` plus this stage's changes, 32-core host, RTX 5090,
 images `evtol/{orbslam3,fastlio2,fastlivo2,eval,sim}:v1` unchanged (no rebuild). One image was
 added, for timing only: `evtol/orbslam3:v1-times`, derived from `orbslam3:v1`.
 

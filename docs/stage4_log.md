@@ -9,7 +9,7 @@ frames; landing gear 0.22 m; 0.4 m hop in every flight).
 Gate (guide 4): every cell of the matrix filled with >= 3 runs, figures generated, every
 result either explained or flagged. **Status: passed (17 Nov 2026)** -- every cell of groups A-E has 3 runs per affected method, the headroom test has 3 runs per rate, all figures are generated and looked at, and every result is explained except three that are flagged: FAST-LIVO2's non-monotonic camera-offset result (+20 ms better than +10 ms), the mechanism of FAST-LIVO2's divergence at 60 m, and its slightly lower error on 10 %-brightness images.
 
-Started 2026-11-17 on the Stage 3 commit `a92c819`, same images (no rebuild).
+Started 2026-11-17 on the Stage 3 commit `8735e6b`, same images (no rebuild).
 
 ## How to reproduce
 
