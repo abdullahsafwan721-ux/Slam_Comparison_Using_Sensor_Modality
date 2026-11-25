@@ -1,0 +1,25 @@
+# PX4 v1.14 parameters for flying on external vision ONLY (Stage 5, and Stage 7
+# on the real airframe). One "NAME VALUE" per line; applied by
+# scripts/stage5/set_params.py, which reads each value back to confirm it.
+#
+# EKF2_EV_CTRL bits: 1 horizontal position, 2 vertical position, 4 velocity,
+# 8 yaw. FAST-LIO publishes pose but no velocity, so 1+2+8 = 11.
+EKF2_EV_CTRL 11
+# Height reference: 0 baro, 1 GNSS, 2 range finder, 3 vision.
+EKF2_HGT_REF 3
+# No GNSS, no barometer, no magnetometer: SLAM is the only position, height
+# and heading source, so a SLAM failure cannot be masked by another sensor.
+EKF2_GPS_CTRL 0
+EKF2_BARO_CTRL 0
+EKF2_MAG_TYPE 5
+# Use these fixed noise values rather than the message covariance.
+EKF2_EV_NOISE_MD 1
+EKF2_EVP_NOISE 0.1
+EKF2_EVA_NOISE 0.05
+# Measurement timestamp -> real capture delay. FAST-LIO stamps each pose with
+# its scan's capture time, so this starts at 0. Tune from flight logs.
+EKF2_EV_DELAY 0
+# slam_to_px4.py already publishes the base_link pose, so no sensor offset.
+EKF2_EV_POS_X 0
+EKF2_EV_POS_Y 0
+EKF2_EV_POS_Z 0

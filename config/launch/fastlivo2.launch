@@ -7,9 +7,19 @@
   <arg name="rviz" default="false"/>
   <!-- Stage 5 points this at the live-noised IMU; replay leaves the default. -->
   <arg name="imu_topic" default="/livox/imu"/>
+  <!-- Stage 5 fault tests point these at live-degraded copies; the defaults are the config's. -->
+  <arg name="lid_topic" default="/livox/lidar"/>
+  <arg name="img_topic" default="/stereo/left/image_raw"/>
   <rosparam command="load" file="$(arg cfg)"/>
   <param name="common/imu_topic" value="$(arg imu_topic)"/>
+  <param name="common/lid_topic" value="$(arg lid_topic)"/>
+  <param name="common/img_topic" value="$(arg img_topic)"/>
   <node pkg="fast_livo" type="fastlivo_mapping" name="laserMapping" output="screen">
+    <!-- Stage 5: FAST-LIVO2 publishes its OWN pose on /mavros/vision_pose/pose (LIVMapper.cpp:212),
+         in its unrotated IMU frame; in the closed loop PX4 then received two contradicting poses
+         (ours through the mount, and this one) and the flight was lost. Moved off MAVROS's topic;
+         the relay (slam_to_px4.py) is the only publisher. No effect on replays (nothing listens). -->
+    <remap from="/mavros/vision_pose/pose" to="/fastlivo2/own_mavros_pose_unused"/>
     <rosparam file="$(arg cam)"/>
   </node>
   <group if="$(arg rviz)">

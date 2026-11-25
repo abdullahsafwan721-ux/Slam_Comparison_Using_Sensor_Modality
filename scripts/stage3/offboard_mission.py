@@ -3,10 +3,10 @@
 
     python3 offboard_mission.py <profile> [--alt 1.5] [--speed 2] [--size 6] [--laps 2]
                                           [--yaw fixed|tangent] [--hop 0.4] [--hop-alt A]
-                                          [--sitl-params]
+                                          [--hop-timing height|start] [--sitl-params]
 
 profiles
-  hover    take off, hold 30 s, land
+  hover    take off, hold --hold seconds (default 30), land
   square   square of side --size, --laps times (one corner at the take-off point,
            extending towards +x and +y)
   figure8  lemniscate of half-width --size, --laps times
@@ -23,6 +23,8 @@ changes by >= 0.5 m/s^2 between two consecutive frames (Tracking.cc, "not enough
 acceleration"); a multirotor following smooth setpoints never produces that, and on the
 first Stage 3 flight ORB-SLAM3 never started. A thrust step does.
 
+--hold S (Stage 5 option; default 30, as before): how long the hover profile holds; a long
+hold is the test of "no oscillation that grows" in the closed loop.
 --hop-alt A (Stage 4 option; default: the cruise altitude, as in Stage 3): fly the hop at
 min(--alt, A) on the way up instead. Tried at 1.5 m and rejected: over the urban plaza the
 downward-looking camera sees dark, uniform paving (~320 ORB features at 1.9 m, ORB-SLAM3
@@ -32,6 +34,11 @@ Stage 4 fix: the hop waits for the vehicle. PX4 lifts off ~3 s after arming, and
 timed only from arming fell inside the take-off transient at 1.5 m (no step in the ground
 truth). The hop now starts 3 s after the MEASURED height (/mavros/local_position/pose) first
 reaches hop height - 0.05 m, and the vehicle gets 3 s to settle back before going on.
+--hop-timing start (final verification, 18 Nov): the Stage 3 schedule, as the Stage 3 gate flight
+(16 Nov) and the Stage 4 room, room_plain and corridor flights were flown: the hop 2 s after the
+scripted 1.5 s climb, timed from the start of the climb (up 1 s, back 2 s), so that it falls
+into the lift-off. ORB-SLAM3 then starts within 1-2 s of take-off; with the default (height)
+timing it starts only at the hop, ~9 s after take-off. --hop-alt is ignored with it.
 Coordinates are MAVROS local ENU, origin at the take-off point.
 --sitl-params sets the parameters that let SITL arm and stay in OFFBOARD
 without an RC transmitter. NEVER use it on a real vehicle.
@@ -95,7 +102,10 @@ def main():
     ap.add_argument("--yaw", choices=["fixed", "tangent"], default="fixed")
     ap.add_argument("--hop", type=float, default=0.4)
     ap.add_argument("--hop-alt", type=float, default=None)
+    ap.add_argument("--hop-timing", choices=["height", "start"], default="height")
     ap.add_argument("--sitl-params", action="store_true")
+    # Stage 5 addition: length of the hover hold; the default keeps every earlier flight unchanged
+    ap.add_argument("--hold", type=float, default=30.0)
     a = ap.parse_args(rospy.myargv()[1:])
 
     rospy.init_node("offboard_mission")
@@ -144,25 +154,40 @@ def main():
     for _ in range(60):
         send(0, 0, 0, 0)
         rate.sleep()
+    # Final-verification fix (18 Nov): keep the setpoint stream at 30 Hz while asking for OFFBOARD and
+    # arming once a second. The loop used to send one setpoint per second, below PX4's 2 Hz minimum
+    # for OFFBOARD; at full speed PX4 still accepted it, with the simulation slowed down it never did.
     t0 = rospy.Time.now()
+    t_arm = t0
+    i = 0
     while not rospy.is_shutdown() and not (state.mode == "OFFBOARD" and state.armed):
         if (rospy.Time.now() - t0).to_sec() > 90:
             sys.exit("!! could not arm/enter OFFBOARD in 90 s -- check the PX4 console for the preflight failure")
-        if state.mode != "OFFBOARD":
-            mode(custom_mode="OFFBOARD")
-        elif not state.armed:
-            arm(True)
+        if i % 30 == 0:
+            if state.mode != "OFFBOARD":
+                mode(custom_mode="OFFBOARD")
+            elif not state.armed:
+                arm(True)
+                t_arm = rospy.Time.now()
         send(0, 0, 0, 0)
-        for _ in range(30):
-            rate.sleep()
+        rate.sleep()
+        i += 1
+    # ... and keep the take-off of every earlier flight: the old loop slept 1 s after the arm command
+    # before the climb began, which gives the sharp lift-off ORB-SLAM3 initialises on (a climb started
+    # at once lifted off softly: largest frame-to-frame change of mean acceleration 0.43 against
+    # 0.87-1.17 m/s^2, below ORB-SLAM3's 0.5, and it started only at the hop)
+    while not rospy.is_shutdown() and (rospy.Time.now() - t_arm).to_sec() < 1.0:
+        send(0, 0, 0, 0)
+        rate.sleep()
     rospy.loginfo("armed, OFFBOARD")
 
-    h1 = min(a.alt, a.hop_alt) if (a.hop > 0 and a.hop_alt) else a.alt   # height of the first leg of the climb
+    stage3_hop = a.hop > 0 and a.hop_timing == "start"     # Stage 3 schedule (see --hop-timing)
+    h1 = min(a.alt, a.hop_alt) if (a.hop > 0 and a.hop_alt and not stage3_hop) else a.alt   # first leg of the climb
     climb = h1 / 1.0                                       # 1 m/s climb
     climb2 = (a.alt - h1) / 1.0                            # rest of the climb, after the hop
     total = a.laps * {"hover": 0, "line": 2 * a.size, "square": 4 * a.size,
                       "figure8": 6.1 * a.size}[a.profile]
-    cruise = 30.0 if a.profile == "hover" else total / a.speed
+    cruise = a.hold if a.profile == "hover" else total / a.speed
     ramp = 3.0                                             # speed ramp, seconds
     start = rospy.Time.now()
     # Stage 3 change (not in the guide): the profile is shifted so that it STARTS above the
@@ -173,7 +198,7 @@ def main():
     x0, y0 = 0.0, 0.0
     last = (x0, y0)
     yaw = 0.0
-    hop_start = None if a.hop > 0 else climb + 2.0         # set once the vehicle is at h1
+    hop_start = None if (a.hop > 0 and not stage3_hop) else climb + 2.0   # set once the vehicle is at h1
     reached = None
     while not rospy.is_shutdown():
         t = (rospy.Time.now() - start).to_sec()
@@ -187,7 +212,10 @@ def main():
             elif t > climb + 30.0:
                 sys.exit("!! vehicle never reached the hop height %.2f m" % h1)
         hs = hop_start if hop_start is not None else 1e9
-        hop_end = hs + (4.0 if a.hop > 0 else 0.0)
+        hop_end = hs + ((3.0 if stage3_hop else 4.0) if a.hop > 0 else 0.0)
+        if stage3_hop and reached is None and t >= hs:
+            reached = t
+            rospy.loginfo("hop %.2f m at %.1f s (Stage 3 timing, from the start of the climb)", a.hop, t)
         rest = climb2 + 2.0 if climb2 > 0 else 0.0         # second leg + 2 s settle, if any
         if t < hs:                                         # climb above the start point, hold
             x, y, z = x0, y0, min(h1, h1 * t / climb)

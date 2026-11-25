@@ -3,6 +3,15 @@ x-common: &common
     - DISPLAY=${DISPLAY}
     - NVIDIA_DRIVER_CAPABILITIES=all
     - QT_X11_NO_MITSHM=1
+    # PX4's own simulation speed (its Gazebo plugin scales real_time_update_rate by it). Passed only
+    # when set on the host, e.g. PX4_SIM_SPEED_FACTOR=0.25, when the GPU is busy with other work and
+    # Gazebo drops camera frames at full speed (final verification, 18 Nov). Sensor data are in
+    # simulation time, so the recorded data do not change. Leave it unset otherwise: PX4's rcS then
+    # also rescales COM_OF_LOSS_T and other loss timeouts (to factor x 0.5 s), even for a factor of 1.
+    - PX4_SIM_SPEED_FACTOR
+    # RViz and rqt open a modal "ROS Noetic goes end-of-life" notice that covers the view (the guide's first
+    # look, Stage 2); the end of life is known and deliberate (the project guide fixes Noetic).
+    - DISABLE_ROS1_EOL_WARNINGS=1
 
   volumes:
     - /tmp/.X11-unix:/tmp/.X11-unix
@@ -94,3 +103,58 @@ services:
       - ./scripts:/scripts:ro
       - ./output:/output
       - ./sim/evtol_sim:/sim:ro
+
+  # ---- Stage 5: live closed loop (guide 5.4). HOST networking so the simulator, FAST-LIO2
+  # and the mission share ONE ROS master. Never run these alongside Stage 1-4 services, whose
+  # roscores would be private but whose simulators would fight over the GPU and CPU.
+  # Changes from the guide's listing: written out instead of merged from the sim service
+  # (compose merges replace whole keys), and ROS_HOSTNAME/ROS_MASTER_URI pinned to
+  # localhost so every node advertises an address the others can reach. Noetic's end-of-life is
+  # known and deliberate (the guide fixes Noetic); its RViz notice is switched off.
+  sim-live:
+    <<: *common
+    image: evtol/sim:v1
+    network_mode: host
+    shm_size: 4gb
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - QT_X11_NO_MITSHM=1
+      - ROS_HOSTNAME=localhost
+      - ROS_MASTER_URI=http://localhost:11311
+      - DISABLE_ROS1_EOL_WARNINGS=1    # RViz's modal "Noetic end-of-life" notice covered the map
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./data:/data:ro
+      - ./config:/config:ro
+      - ./scripts:/scripts:ro
+      - ./output:/output
+      - ./sim/evtol_sim:/sim:ro
+
+  fastlio2-live:
+    <<: *common
+    image: evtol/fastlio2:v1
+    network_mode: host
+    shm_size: 4gb
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - QT_X11_NO_MITSHM=1
+      - ROS_HOSTNAME=localhost
+      - ROS_MASTER_URI=http://localhost:11311
+      - DISABLE_ROS1_EOL_WARNINGS=1    # RViz's modal "Noetic end-of-life" notice covered the map
+
+  # Stage 5 extension: FAST-LIVO2 in the closed loop (the guide: "FAST-LIVO2 can be substituted
+  # the same way"), same host networking as fastlio2-live.
+  fastlivo2-live:
+    <<: *common
+    image: evtol/fastlivo2:v1
+    network_mode: host
+    shm_size: 4gb
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - QT_X11_NO_MITSHM=1
+      - ROS_HOSTNAME=localhost
+      - ROS_MASTER_URI=http://localhost:11311
+      - DISABLE_ROS1_EOL_WARNINGS=1
