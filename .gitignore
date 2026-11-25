@@ -3,3 +3,23 @@ output/
 *.bag
 *.zip
 __pycache__/
+
+# Documents made for presenting and reporting the project (slides, reports, e-books) and the local
+# folders that build them. They are not needed to reproduce the results, so they stay out of git.
+*.pdf
+*.ppt
+*.pptx
+*.epub
+*.docx
+docs/Phase1_Presentation/
+docs/final_stage1/
+docs/talk/
+docs/paper/
+docs/techdoc/
+docs/guide/
+docs/epub/
+docs/make_report.py
+docs/make_report_epub.py
+docs/make_final_report.py
+docs/make_reference_pdf.py
+docs/make_test_commands_pdf.py

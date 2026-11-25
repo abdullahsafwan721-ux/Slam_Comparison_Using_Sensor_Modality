@@ -8,4 +8,4 @@
 | FAST-LIVO2, matched start (NTU-VIRAL) | `fastlivo2_matched_comparison.md` | `fastlivo2_matched_summary.csv` | replay from the authors' own first pose; see `docs/fastlivo2_reproduction_log.md` |
 
 Raw outputs (trajectories, bags, logs, diagnostics): `output/` -- layout in `OUTPUT_LAYOUT.md`.
-All build/test/evaluation commands: `docs/FAST-LIO2_FAST-LIVO2_Test_Commands.pdf`.
+All build/test/evaluation commands: the repository's `README.md`.
