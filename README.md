@@ -12,9 +12,7 @@ on its own.
 | [FAST-LIVO2](https://github.com/hku-mars/FAST-LIVO2) | LiDAR + camera + IMU | the same LiDAR update, then a photometric update that compares small image patches, in one filter |
 
 Everything runs in Docker with pinned versions ([VERSIONS.md](VERSIONS.md)). Every step is one script,
-and every stage has a verification script. The full procedure below was run end to end on a fresh
-checkout on 20 Nov 2026: 49 of 49 steps passed. Stage 1's dataset downloads are documented here but were
-not repeated in that run.
+and every stage has a verification script.
 
 ## Contents
 
@@ -22,7 +20,7 @@ not repeated in that run.
 - [Main results](#main-results)
 - [Repository layout](#repository-layout)
 - [Requirements](#requirements)
-- [Setup: machine, code and Docker images](#setup-machine-code-and-docker-images)
+- [Setup: Docker, code and images](#setup-docker-code-and-images)
 - [Stage 1: reproduce the papers](#stage-1-reproduce-the-papers)
 - [Stage 2: the simulated sensor rig](#stage-2-the-simulated-sensor-rig)
 - [Stage 3: the three SLAM algorithms on simulated data](#stage-3-the-three-slam-algorithms-on-simulated-data)
@@ -30,7 +28,6 @@ not repeated in that run.
 - [Stage 5: PX4 flies on SLAM alone](#stage-5-px4-flies-on-slam-alone)
 - [Verification scripts](#verification-scripts)
 - [How the results are scored](#how-the-results-are-scored)
-- [Time and disk space](#time-and-disk-space)
 - [Troubleshooting](#troubleshooting)
 - [Documentation](#documentation)
 - [Versions and licences](#versions-and-licences)
@@ -128,20 +125,18 @@ the project are not part of this repository.
 
 ## Requirements
 
-| | Needed | Machine the results were produced on |
-|---|---|---|
-| Processor | x86-64 with AVX2 (FAST-LIVO2 is compiled for `-march=skylake`) | AMD Ryzen 9 9950X, 32 threads |
-| Graphics | an NVIDIA GPU and driver: Gazebo renders the simulated cameras on it | NVIDIA GeForce RTX 5090 |
-| Memory | 16 GB at least (build the images one at a time) | 30 GB |
-| Disk | about 20 GB for the images, plus results (see [Time and disk space](#time-and-disk-space)); Stage 1 needs another 260 GB for its datasets | |
-| System | Ubuntu 22.04 or 24.04 with a graphical X11 desktop | Ubuntu 24.04.5 LTS |
-| Software | Docker Engine with the Compose plugin, usable without `sudo`; NVIDIA Container Toolkit; git; Python 3 with PyYAML, NumPy and Matplotlib (and ReportLab for Stage 1's final table) | Docker 29.8.2, Compose 5.5.1 |
-| Network | GitHub, the Ubuntu and ROS package servers and PyPI, while the images build | |
+- Ubuntu 22.04 or 24.04 with a graphical X11 desktop (Gazebo and RViz open windows on it)
+- an x86-64 processor with AVX2 (FAST-LIVO2 is compiled for `-march=skylake`) and at least 16 GB of memory
+- an NVIDIA GPU with its driver, and the NVIDIA Container Toolkit: Gazebo renders the simulated cameras on the GPU
+- Docker Engine with the Compose plugin, usable without `sudo`
+- git, and Python 3 with PyYAML, NumPy, Matplotlib and ReportLab for the host-side scripts
+- about 20 GB of disk for the images, plus space for the results; the Stage 1 datasets need about 260 GB more
+- internet access while the images build (GitHub, the Ubuntu and ROS package servers, PyPI)
 
 ROS Noetic, Gazebo, PX4, OpenCV and the three SLAM algorithms are all inside the images. The host needs
 no ROS.
 
-## Setup: machine, code and Docker images
+## Setup: Docker, code and images
 
 ### 1. Install Docker and the NVIDIA Container Toolkit
 
@@ -155,9 +150,6 @@ sudo usermod -aG docker $USER                 # log out and in again: docker wit
 sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
 sudo apt-get install -y python3-yaml python3-numpy python3-matplotlib python3-reportlab   # host-side scripts
 ```
-
-Install Docker from Docker's own package source only. A second Docker from the snap store can take
-over after a restart and hide all the images.
 
 ### 2. Get the code
 
@@ -180,7 +172,7 @@ bash scripts/verify_host.sh    # Gate 1: every line OK, last line "Host is ready
 Containers write as root. Files they leave under `output/` belong to root: delete them with
 `sudo rm` or with `docker compose run --rm eval rm -rf /output/<path>`.
 
-### 4. Build the Docker images (about 1 hour, about 20 GB)
+### 4. Build the Docker images
 
 ```bash
 docker build -t evtol/base:noetic -f docker/base.Dockerfile .
@@ -189,7 +181,7 @@ docker compose build orbslam3
 docker compose build fastlio2
 docker compose build fastlivo2
 docker compose build eval
-docker compose build sim                 # the longest, about 40 minutes
+docker compose build sim
 docker compose build orbslam3_times      # only Stage 3's timing step needs it
 docker images "evtol/*"
 bash scripts/test_containers.sh quick    # every check PASS; SKIP is normal on a fresh copy
@@ -216,7 +208,7 @@ with a like-for-like reference. That is the paper's own value where its protocol
 and otherwise an independent re-run (FAST-LIO2) or the authors' released results (FAST-LIVO2). Within
 15 % is green, 15-30 % amber, above 30 % red.
 
-Stage 1 is the only stage that needs the public datasets (about 260 GB). Later stages use only the
+Stage 1 is the only stage that needs the public datasets. Later stages use only the
 simulator, so you can go straight to Stage 2.
 
 ### Datasets and where they go
@@ -243,7 +235,7 @@ docker compose run --rm eval bash /scripts/eval_orbslam3.sh
 bash scripts/fl2_benchmark.sh
 ONLY="utbm8 nclt5" WAIT=0 bash scripts/fl2_benchmark.sh     # or only a selection
 
-# FAST-LIVO2: NTU-VIRAL and the authors' dataset (runs for hours, so start it as a service),
+# FAST-LIVO2: NTU-VIRAL and the authors' dataset (started as a user service, so that it keeps running if the terminal closes),
 # then NTU-VIRAL again with the authors' "matched start" protocol
 systemd-run --user --unit=livo2-bench --collect --working-directory="$PWD" \
     bash scripts/livo2_benchmark.sh
@@ -452,8 +444,8 @@ when other programs share the processor.
 - **FAST-LIO2** stays at centimetres wherever the LiDAR sees structure. It drifts along the corridor
   and fails over the flat field, where the geometry runs out.
 - **FAST-LIVO2** is the most accurate, from millimetres to a few centimetres, field included. It
-  diverges at 60 m, is the most sensitive to camera timing, and has the least computing headroom
-  (2-4× on the workstation, against more than 8× for FAST-LIO2).
+  diverges at 60 m, is the most sensitive to camera timing, and has the least computing headroom:
+  replayed faster than real time, it falls behind first, while FAST-LIO2 keeps up even at 8×.
 - **ORB-SLAM3** needs texture close to its cameras. Over the plaza, from 20 to 60 m, it covers 62-77 %
   of the flight at 15-32 cm. It never starts at 10 m, and it is lost in the corridor and over the field.
   It fails on dimmed images and diverges at 30 times the IMU noise.
@@ -555,7 +547,7 @@ Details, the matrix results and the failure cases: `docs/stage5_log.md`.
 
 ## Verification scripts
 
-Each stage has a verification script, written for the project's final check. Each one:
+Each stage has a verification script. Each one:
 
 - re-scores every stored run from its ground truth and trajectory;
 - regenerates the tables and figures;
@@ -565,17 +557,16 @@ Each stage has a verification script, written for the project's final check. Eac
 The scripts compare with the results stored under `output/`. They are useful once your own results
 are complete, or when you have the project's result archive.
 
-| Command | What it checks | Time |
-|---|---|---|
-| `bash scripts/verify_stage1.sh` | Gates 1 and 2, the container tests, every stored Stage 1 run re-scored, `final_results/*.csv` regenerated byte for byte (needs the stored runs, not the datasets) | 15 min |
-| `GUI=true bash scripts/stage2/verify_stage2.sh` | the generators, a new 120 s recording and its gate, agreement with the stored recording, all five worlds | 15 min |
-| `GUI=true bash scripts/stage3/verify_stage3.sh` | every stored Stage 3 run re-scored, the log's numbers, a replay, a new PX4 flight and the Stage 3 gate | 35 min |
-| `FLY=1 GUI=true bash scripts/stage4/verify_stage4.sh` | all 312 runs re-scored, tables and figures regenerated, the log's numbers, fault copies rebuilt, a new flight | 20 min + flight |
-| `FLY=1 MATRIX=1 GUI=true bash scripts/stage5/verify_stage5.sh` | every flight re-scored, the gate from the numbers, a new closed-loop flight, the closed-loop matrix | 10 min + flight |
-| `python3 scripts/tools/independent_ape.py` | the APE recomputed from scratch with NumPy (not evo) for 27 runs of all stages; must agree to 1e-6 m | 1 min |
+| Command | What it checks |
+|---|---|
+| `bash scripts/verify_stage1.sh` | Gates 1 and 2, the container tests, every stored Stage 1 run re-scored, `final_results/*.csv` regenerated byte for byte (needs the stored runs, not the datasets) |
+| `GUI=true bash scripts/stage2/verify_stage2.sh` | the generators, a new 120 s recording and its gate, agreement with the stored recording, all five worlds |
+| `GUI=true bash scripts/stage3/verify_stage3.sh` | every stored Stage 3 run re-scored, the log's numbers, a replay, a new PX4 flight and the Stage 3 gate |
+| `FLY=1 GUI=true bash scripts/stage4/verify_stage4.sh` | all 312 runs re-scored, tables and figures regenerated, the log's numbers, fault copies rebuilt, a new flight |
+| `FLY=1 MATRIX=1 GUI=true bash scripts/stage5/verify_stage5.sh` | every flight re-scored, the gate from the numbers, a new closed-loop flight, the closed-loop matrix |
+| `python3 scripts/tools/independent_ape.py` | the APE recomputed from scratch with NumPy (not evo) for 27 runs of all stages; must agree to 1e-6 m |
 
-All of them passed on 18 Nov 2026 (`docs/final_verification.md`). Each one writes only its own folder
-under `output/`.
+Each one writes only its own folder under `output/`.
 
 ## How the results are scored
 
@@ -594,19 +585,6 @@ under `output/`.
   the mean of the 11 sequence medians, as in its paper.
 - **Stage 5:** PX4's estimate against the truth, without alignment, in PX4's own frame, from take-off
   to the first touchdown: what the vehicle believed against where it was.
-
-## Time and disk space
-
-Measured in the end-to-end run of 20 Nov 2026:
-
-| Part | Time | Disk |
-|---|---|---|
-| Docker images | 55 min | about 20 GB |
-| Stage 1 | many hours (downloads and runs) | 260 GB of datasets |
-| Stage 2 | 8 min | 3.5 GB (the bags; delete them after Stage 3) |
-| Stage 3 | 41 min | 5.7 GB at its peak |
-| Stage 4 | 6 h 15 min | 118 GB at its peak; 44 GB without the files that can be re-created |
-| Stage 5 | 2 h 58 min | 26 GB at its peak (the closed-loop matrix about 25 GB) |
 
 ## Troubleshooting
 
@@ -644,16 +622,9 @@ command needed to reproduce Stages 1 to 5.
 
 ## Versions and licences
 
-The images clone every upstream project at a pinned commit or tag ([VERSIONS.md](VERSIONS.md)):
-
-- ORB-SLAM3 v1.0 (0df83dd)
-- FAST-LIO (7cc4175)
-- FAST-LIVO2 (0d2c034)
-- Livox SDK v2.3.1 and livox_ros_driver v2.6.0
-- Sophus (a621ff2) and rpg_vikit (6c886c8)
-- PX4-Autopilot v1.14.4 (1555f2b)
-- the Mid-360 simulation plugin (aae8ee3)
-- OpenCV 4.4.0, Pangolin 0.6, evo 1.31.1, Gazebo 11.15.1, all on Ubuntu 20.04 with ROS Noetic
+The images clone every upstream project at a pinned commit or tag, listed in [VERSIONS.md](VERSIONS.md):
+ORB-SLAM3 v1.0, FAST-LIO, FAST-LIVO2, PX4 v1.14.4, the Mid-360 simulation plugin and their dependencies,
+on Ubuntu 20.04 with ROS Noetic and Gazebo 11.
 
 This repository's own code is under the MIT licence ([LICENSE](LICENSE)). The upstream projects are not
 copied into the repository; they are downloaded when the images are built and keep their own licences.
