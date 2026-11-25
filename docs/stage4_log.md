@@ -113,7 +113,8 @@ structure at all over the urban sweep; the open field is the case with nothing i
 Numbers: flight-window APE RMSE (D3), median of 3 runs (as in `stage4_tables.md`); per-run values in
 `output/stage4/<group>/eval/`, all tables in `output/stage4/stage4_tables.md`. Runs of the
 same bag were identical to the last digit for FAST-LIO2 and FAST-LIVO2 in most conditions
-(deterministic replay); ORB-SLAM3 varies run to run (multi-threaded).
+(deterministic replay; FAST-LIVO2's trajectories are not bit-identical, single poses differ by
+up to a few mm, see the Stage 3 log); ORB-SLAM3 varies run to run (multi-threaded).
 
 Corrected 18 Nov by `scripts/stage4/verify_stage4.sh`, which checks every number in these tables
 against a fresh re-scoring of all runs. The first version said "mean" where the
@@ -280,6 +281,26 @@ flight, fails on dim images, repetitive texture and noisy IMUs. Losing a LiDAR f
   236-392 loop candidates were rejected ("BAD LOOP") and 4 new maps started -- perceptual
   aliasing. Coverage stays 0.99, so tracking "succeeds" while the map is wrong: the TSR
   (0.00) catches it, coverage alone does not.
+
+## Final cross-verification (2026-11-18)
+
+`PX4_SIM_SPEED_FACTOR=0.15 FLY=1 GUI=true bash scripts/stage4/verify_stage4.sh` (log
+`output/final_verification/verify_stage4.log`): **all 9 steps passed**. All 312 runs re-scored
+identically, tables and the 10 figures regenerated identically, the log's 79 numbers confirmed, both
+rebuilt fault copies byte-identical, the live replay equal to the stored runs (FAST-LIO2 0.701 cm,
+FAST-LIVO2 0.291 cm; ORB-SLAM3 within its spread), and a new room_plain flight passes the sensor gate.
+The new flight had to be slowed down (`PX4_SIM_SPEED_FACTOR`, passed through compose.yaml): other
+jobs held the GPU at 100 % and the CPU at a load of about 30. At 0.25x one attempt passed every check
+but one (11 LiDAR intervals of 88-112 ms, the mechanism of deviation 6); at 0.15x every interval was
+99-101 ms. An earlier attempt could not arm because a test had put back the old mission script
+(Stage 3 deviation 15) as it started.
+
+Found by the same check: deviation 12 (the hop waits for the measured height) also moves the hop of
+a ROOM flight out of the lift-off, ~9 s later. The stored room, room_plain, corridor and fault
+flights were flown before it, with the hop in the lift-off, where ORB-SLAM3 initialises; a room
+flight re-flown with the default schedule starts ORB-SLAM3 only at the hop (Stage 3 Finding 9). To
+re-fly a room-type flight comparably, use `--hop-timing start` (Stage 3 deviation 16). The step 9
+flight only feeds the sensor gate, which the hop schedule does not affect.
 
 ## Threats to validity (guide 4.5, plus what Stages 3-4 found)
 

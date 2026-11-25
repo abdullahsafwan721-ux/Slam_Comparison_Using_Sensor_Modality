@@ -137,6 +137,8 @@ it; each is marked in the file it touches.
 | 12 | `offboard_mission.py` | smooth setpoints only | ORB-SLAM3 never initialises: it needs a >= 0.5 m/s^2 change of mean acceleration between frames (`Tracking.cc:2347`) | `--hop 0.4`: altitude step after the climb, in every flight |
 | 13 | `run_all_algos.sh` | -- | containers write as root; a `docker compose run` without `-T` needs a terminal | `chown` on exit; `-T` |
 | 14 | `run_all_algos.sh` | reuses the noised bag, ground truth and EuRoC folder when they exist | the flight was recorded again under the same name (16 Nov, 21:16); the next run reused the first recording's data and scored that, while the bag on disk was another flight | refuses to run when the source bag is newer than the noised copy; the output directory has to be moved aside first |
+| 15 | `offboard_mission.py` | arming loop: one setpoint, then wait 1 s, ask for OFFBOARD / arm | one setpoint per second is below PX4's 2 Hz minimum for OFFBOARD. At full speed PX4 accepted it anyway (every flight of Stages 3-5 armed), but in the final verification (18 Nov), with the simulation slowed down for a busy GPU (`PX4_SIM_SPEED_FACTOR` 0.35 / 0.6), it never armed ("could not arm/enter OFFBOARD in 90 s") | the setpoint stream stays at 30 Hz while OFFBOARD and arming are requested once a second; the climb starts 1 s after the arm command, as before. Measured: the take-off is the same with the old and the new loop. (The old loop's failures on 18 Nov also had a second cause: with `PX4_SIM_SPEED_FACTOR` set, even to 1, PX4's rcS sets COM_OF_LOSS_T to factor x 0.5 s instead of 1.0 s) |
+| 16 | `offboard_mission.py` | (Stage 3 hop: 2 s after the scripted climb, timed from its start) | Stage 4 deviation 12 made the hop wait for the measured height (right outdoors), which moves it ~9 s after the lift-off in the room; ORB-SLAM3 then starts only there and a re-flown room flight fails the coverage gate (0.82, Finding 9) | `--hop-timing start` reproduces the Stage 3 schedule exactly; `verify_stage3.sh` flies with it. Default stays Stage 4's |
 
 Checked and kept as the guide has them: `--sitl-params` values. The v1.14 parameter
 reference gives `NAV_RCL_ACT` a minimum of 1, but v1.14.4's `failsafe.cpp`
@@ -245,8 +247,10 @@ window of the scripted path takes the place of the flight window):
 | ORB-SLAM3 (frames) | 0.0109 | 0.0108 | 0.0106 | 0.0026 | 0.05 | 0.20 | 0.971 | 0.971 | 0.909 | 3.2 | 219 | 759 | 12.9 (tracking time) |
 | ORB-SLAM3 (keyframes) | 0.0106 | 0.0106 | 0.0104 | 0.0021 | 0.04 | 0.21 | -- | -- | -- | -- | | | |
 
-Medians of 3 runs; TSR and coverage are the worst run. FAST-LIO2 and FAST-LIVO2 are
-deterministic (identical trajectories in all three runs); ORB-SLAM3 varies between runs
+Medians of 3 runs; TSR and coverage are the worst run. FAST-LIO2 is deterministic
+(bit-identical trajectories in all three runs). FAST-LIVO2 is not quite: its APE agrees to
+1e-4 m (whole bag 0.00608-0.00614 m), but single poses differ by up to 1.9 cm between runs
+(corrected 18 Nov by the final verification, which first assumed bit-identity); ORB-SLAM3 varies between runs
 (whole-bag APE 0.0066, 0.0109, 0.0116 m in this set; 0.0057, 0.0098, 0.0131 m in the set
 run earlier the same day), which is why medians are used. One map per ORB-SLAM3 run.
 
@@ -287,8 +291,8 @@ Gate:
 
 The same flight, recording 1 (`px4_recording1/`): flight APE 0.0083 / 0.0049 / 0.0044 m
 (FAST-LIO2 / FAST-LIVO2 / ORB-SLAM3), coverage 1.000 / 1.000 / 0.956, ORB-SLAM3 start-up
-1.7 s. The two LiDAR methods gave bit-identical trajectories in the runs of 16 and of 17
-Nov on that recording. ORB-SLAM3 over 9 runs on the two recordings: flight-window APE
+1.7 s. FAST-LIO2's three runs on that recording are bit-identical; FAST-LIVO2's differ by at
+most 0.16 mm (36-62 of 683 poses). ORB-SLAM3 over 9 runs on the two recordings: flight-window APE
 0.0036-0.0089 m in every run; whole-bag APE 0.057-0.27 m; largest error after landing
 0.41-1.86 m. Its start-up (0.7 s and 1.7 s after take-off) depends on when the hop's
 acceleration step falls between two camera frames.
@@ -399,6 +403,20 @@ is closed: its "higher drift" was the time-stamp artefact of deviation 2.
    identically in every run; its pose-file stamps alternate 0.05 / 0.15 s there. Recording 2
    has none (largest error in flight 1.0 cm). Effect on the RMSE: none at the third decimal.
 
+9. **ORB-SLAM3 starts at take-off only with Stage 3's hop schedule** (found by the final
+   verification, 18 Nov). In the Stage 3 gate flight the hop came 2 s after the scripted 1.5 s
+   climb, timed from its start, and so fell into the lift-off: one sharp push (peak vertical
+   acceleration 1.67 m/s^2, 0.9 s after lift-off; largest change of the mean acceleration between
+   camera frames 0.87-1.17 m/s^2 in the four stored room-type flights), which passes ORB-SLAM3's
+   0.5 m/s^2 initialisation test: it started 0.7-1.8 s after take-off. Stage 4 deviation 12 made the
+   hop wait for the measured height (needed outdoors) and did not re-fly the room flights. Flown
+   with that schedule, the room flight lifts off smoothly (0.41-0.44 m/s^2, with the old or the new
+   arming loop alike), ORB-SLAM3 starts only at the hop, 8.9 s after take-off in all three runs,
+   and its flight coverage is 0.82 (gate 0.95); its accuracy once started is unchanged
+   (0.40-0.59 cm). With `--hop-timing start` (deviation 16) the take-off is the stored one again
+   (1.41 m/s^2 between frames, peak 1.66 m/s^2 0.9 s after lift-off). ORB-SLAM3's early start
+   indoors therefore depends on a well-timed manoeuvre in the lift-off; the protocol has to say so.
+
 ## Hand-over to Stage 4
 
 - Every flight now includes the hop and the landing gear. ORB-SLAM3's flight coverage was
@@ -433,14 +451,32 @@ What was checked, and what it found:
    bag on disk and the results belonged to different flights. Fixed: deviation 14; the first
    recording's data moved to `px4_recording1/`; all three algorithms re-run on the bag on
    disk (`px4/`); every table of this log regenerated from the files.
-2. **Reproducibility.** FAST-LIO2 and FAST-LIVO2 reproduce bit-identically across the runs of
-   two days. ORB-SLAM3's flight-window APE stays within 0.4-0.9 cm over 9 runs.
+2. **Reproducibility.** FAST-LIO2 reproduces bit-identically across the runs of two days.
+   FAST-LIVO2 reproduces its APE to 1e-4 m but not bit for bit (single poses differ by up to
+   1.9 cm between runs; corrected 18 Nov by the final verification). ORB-SLAM3's flight-window APE stays within 0.4-0.9 cm over 9 runs.
 3. **Facts against upstream code and manuals** (section "Second pass"): no result affected.
 4. **The three autonomous decisions against the literature**: D3 keep (safeguards listed
    under D3), hop keep (no upstream alternative), landing gear keep at 0.22 m in simulation
    (the 0.5 m variant was flown and is worse on this vehicle; see 3b).
 5. **Open item "ORB-SLAM3 headroom"**: done with a derived image, the validated image
    untouched.
+
+## Final cross-verification, 2026-11-18
+
+`RTF=0.25 GUI=true bash scripts/stage3/verify_stage3.sh` (log `output/final_verification/verify_stage3.log`):
+**all 6 steps passed**. All 24 stored runs re-scored identically (260 table cells); the 89 numbers of
+this log's 3a/3b tables confirmed; the scripted bag replayed (FAST-LIO2 bit-identical, FAST-LIVO2
+APE within its stored range, ORB-SLAM3 within its spread); a new PX4 flight of the gate mission,
+with Stage 3's hop schedule (`--hop-timing start`, deviation 16) and slowed to 0.25x real time for a
+GPU busy with other work, passes all 17 flight-gate checks; on it FAST-LIO2 0.98 cm, FAST-LIVO2
+0.44 cm, ORB-SLAM3 3.43 cm, flight coverage 1.000 / 1.000 / 0.979, no failed run. ORB-SLAM3's
+3.43 cm (runs 2.19-3.87) is the flight-window rule, not its tracking: this vehicle bounced and slid
+0.38 m at touchdown, so the window (to the last motion > 0.10 m from the end pose) took in 1.3 s on
+the ground, where ORB-SLAM3 always loses the scene; over the airborne part alone (height > 0.10 m)
+its error is 0.63-0.69 cm, as in the stored runs (0.63-0.89 cm), best Sim(3) scale 1.002 in both.
+Earlier attempts are kept (`verify_stage3_run*.log`): one at full speed failed only the camera rate
+(GPU), one could not arm at 0.35x (deviation 15), one with Stage 4's hop schedule gave ORB-SLAM3 a
+coverage of 0.82 (Finding 9).
 
 ## Not done / open
 

@@ -55,4 +55,8 @@ if [ $RC -ne 0 ] || ! grep -q "landed and disarmed" "$LOG.mission.log"; then
   mv -f "$OUT" "${OUT%.bag}.FAILED.bag" 2>/dev/null || true
   echo "!! mission failed -- see $LOG.mission.log and $LOG.sim.log"; exit 1
 fi
+# (added 20 Nov 2026, reproduction guide) the flight's files go to the owner of the folder they are in:
+# written as root, the bag cannot be hard-linked by the host user (fs.protected_hardlinks), and Stage 4's
+# run_matrix.sh links the Stage 3 room flight that way. A no-op when the folder belongs to root.
+chown --reference="$(dirname "$OUT")" "${OUT%.bag}".* 2>/dev/null || true
 echo "wrote $OUT"

@@ -158,6 +158,18 @@ returns up to 2.33 m on the walls (+7 deg FOV edge: 1.5 + 7 tan 7 deg = 2.36 m).
 (`output/diagnostics/stage2/worlds_load/`). Only room is the Stage 2 baseline; the other four are
 loaded here so that Stage 4 does not discover a broken world.
 
+## Final cross-verification (2026-11-18)
+
+`RTF=0.35 GUI=true bash scripts/stage2/verify_stage2.sh` (log `output/final_verification/verify_stage2.log`):
+**all 5 steps passed**. The generators regenerate all 19 tracked files byte-identically; a new 120 s
+recording passes the gate 13/13 (2399 stereo pairs, IMU vs ground truth RMS 0.001 m/s^2) and
+agrees with the stored one (LiDAR stamp -0.7 against -1.2 ms, camera stamp +1.4 ms both, camera
+extrinsic within 0.001 deg and 0.1 mm of the stored best fit, hold 7.7 s); all five worlds load
+and pass. Condition: five unrelated training jobs held the GPU at 100 %; at full speed Gazebo
+rendered only 13-17 camera frames per second and a first recording failed the camera checks, so
+the simulation was slowed to 0.31x real time (`scripts/tools/sim_rtf.sh`). The data are in
+simulation time and unchanged by that.
+
 ## End-to-end with the Stage 1 images
 
 See `docs/stage1_2_audit.md`: the final bag through FAST-LIO2, FAST-LIVO2 and ORB-SLAM3 with the

@@ -120,3 +120,15 @@ noise-free IMU), not Stage 3 results.
 - The functional (L2) level of `scripts/test_containers.sh` (needs those datasets).
 - `latency_probe.py` (only runs with `LATENCY=1`, a Stage 6 measurement); the other five shared
   tools were all exercised above.
+
+## Final cross-verification (2026-11-18)
+
+`bash scripts/verify_stage1.sh` (log `output/final_verification/verify_stage1.log`, 11 min): **all 6
+steps passed**. Gate 1 (host) and Gate 2 (base image, GPU OpenGL); container suite 24 PASS / 0 FAIL /
+1 SKIP (the NTU-VIRAL reference files are gone with the datasets); every stored run re-scored from
+its raw output with its original evaluation script and settings: ORB-SLAM3 55 of 55 runs, FAST-LIO2
+110 of 110 values (from the recorded /Odometry bags), FAST-LIVO2 75 whole-bag and 45 matched-start
+values, all identical (largest difference 0.0 m); `final_results/*.csv` regenerated from the
+re-scored runs: byte-identical. The datasets themselves are no longer on disk, so Stage 1 was
+re-scored, not re-run (ETH's server answers scripted EuRoC downloads with HTTP 429). Stage 2 is
+re-verified in `docs/stage2_log.md`.
